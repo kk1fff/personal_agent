@@ -1,6 +1,6 @@
 <mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36" version="29.3.0">
   <diagram name="Page-1" id="Rkn3I075d8q4gyXtbFjB">
-    <mxGraphModel dx="2304" dy="1930" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1775" dy="1628" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -138,6 +138,9 @@
         </mxCell>
         <mxCell id="-e1m69RhKSMPJ62KAaIz-49" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Telegram Chat BOT credentials, Poll or web hook models" vertex="1">
           <mxGeometry height="60" width="120" x="-200" y="-110" as="geometry" />
+        </mxCell>
+        <mxCell id="-e1m69RhKSMPJ62KAaIz-50" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="LLM token" vertex="1">
+          <mxGeometry height="60" width="120" x="-60" y="-110" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
