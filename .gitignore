@@ -27,6 +27,8 @@ wheels/
 venv/
 env/
 ENV/
+# Python venv location (as per AGENTS.md)
+env/
 
 # IDEs
 .vscode/

@@ -1,3 +1,7 @@
+# Documentations
+1. The documentations/architecture.md contains the design detail of the project. It should contain an overview, goal, high level design, constraint, design principles, modeules, requirements, high level dependencies. 
+2. It should be kept up to date.
+
 # README
 
 1. Maintain a README.md, everytime where there is a code change, make sure the readme.md is up to date. 
