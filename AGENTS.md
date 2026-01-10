@@ -17,3 +17,6 @@
 1. Always include test and implement the core module in a way that is test able.
 2. Every time before a coding job is done, run tests to ensure all test passes.
 3. Every time when a new components is implemented, add test for it.
+
+# Python
+1. All python related execution should be done using venv. The venv location is `env`, it should be put into gitignore.

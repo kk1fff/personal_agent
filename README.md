@@ -1,0 +1,238 @@
+# Personal Agent System
+
+A Telegram bot powered by AI agents that helps users manage tasks, information, and schedules. The system supports multiple LLM providers (Ollama, ChatGPT, Gemini) and includes tools for Notion and Google Calendar integration.
+
+## Features
+
+- **Telegram Integration**: Support for both polling and webhook modes
+- **Multi-LLM Support**: Works with Ollama (local), OpenAI (ChatGPT), and Google Gemini
+- **Pluggable Tool System**: Extensible tools including Notion and Google Calendar integration
+- **Conversation Management**: SQLite-based conversation history with context retrieval
+- **Vector Memory**: Optional vector database for long-term memory and semantic search
+- **Configurable**: YAML-based configuration with credential management
+
+## Prerequisites
+
+- Python 3.8 or higher
+- Telegram Bot Token (get one from [@BotFather](https://t.me/botfather))
+- LLM API credentials (depending on your chosen provider):
+  - Ollama: Local installation (optional, for local LLM)
+  - OpenAI: API key for ChatGPT
+  - Gemini: API key for Google Gemini
+
+## Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd personal_agent
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Copy the example configuration:
+```bash
+cp config.yaml.example config.yaml
+```
+
+4. Edit `config.yaml` and fill in your credentials:
+   - Telegram bot token
+   - LLM provider and credentials
+   - Allowed conversation IDs and user IDs
+   - Tool credentials (Notion, Google Calendar) if needed
+
+## Configuration
+
+The `config.yaml` file contains all system configuration. Key sections:
+
+- **telegram**: Bot token and mode (poll/webhook)
+- **allowed_conversations**: List of Telegram chat IDs the bot will respond to
+- **allowed_users**: List of Telegram user IDs allowed to use the bot
+- **llm**: LLM provider configuration (ollama, openai, or gemini)
+- **tools**: Tool-specific credentials (Notion, Google Calendar)
+- **database**: Database file paths
+
+See `config.yaml.example` for a complete example with all options.
+
+## Launching the System
+
+### Basic Launch
+
+Run the system with default settings:
+```bash
+python -m src.main
+```
+
+Or specify a custom config file:
+```bash
+python -m src.main /path/to/config.yaml
+```
+
+### Verbosity Levels
+
+Control logging verbosity using `-v`, `-vv`, or `-vvv` flags:
+
+- **No flag** (default): WARNING level - only warnings and errors
+- **-v**: INFO level - informational messages
+- **-vv**: DEBUG level - detailed debugging information
+- **-vvv**: DEBUG level with maximum detail
+
+Examples:
+```bash
+# Info level logging
+python -m src.main -v
+
+# Debug level logging
+python -m src.main -vv
+
+# Maximum verbosity
+python -m src.main -vvv config.yaml
+```
+
+### Log Files
+
+By default, all logs are saved to `logs/log_YYYYMMDD_HHMMSS.log` with timestamps in local time. Log files include:
+- All log levels (regardless of console verbosity)
+- Function names and line numbers
+- Detailed timestamps
+
+Log files are automatically created in the `logs/` directory.
+
+## Testing
+
+### Prerequisites for Testing
+
+Make sure all dependencies are installed:
+```bash
+pip install -r requirements.txt
+```
+
+### Running Tests
+
+Run all tests:
+```bash
+pytest tests/
+```
+
+Run tests with verbosity:
+```bash
+pytest tests/ -v
+```
+
+Run a specific test file:
+```bash
+pytest tests/test_config_loader.py
+```
+
+Run a specific test:
+```bash
+pytest tests/test_config_loader.py::test_load_config_valid
+```
+
+### Test Coverage
+
+Install coverage tools:
+```bash
+pip install pytest-cov
+```
+
+Run tests with coverage:
+```bash
+pytest tests/ --cov=src --cov-report=html
+```
+
+View coverage report:
+```bash
+open htmlcov/index.html  # macOS
+# or
+xdg-open htmlcov/index.html  # Linux
+```
+
+### Test Structure
+
+Tests are organized by module:
+- `test_config_loader.py`: Configuration loading and validation
+- `test_message_extractor.py`: Telegram message extraction and filtering
+- `test_conversation_db.py`: Database operations
+- `test_context_manager.py`: Conversation context management
+- `test_tools_base.py`: Base tool functionality
+- `test_tool_registry.py`: Tool registration and initialization
+
+## Project Structure
+
+```
+personal_agent/
+├── src/
+│   ├── main.py                 # Entry point
+│   ├── config/                 # Configuration management
+│   ├── telegram/               # Telegram integration
+│   ├── agent/                  # Agent processor
+│   ├── llm/                    # LLM abstraction layer
+│   ├── tools/                  # Tool implementations
+│   ├── context/                # Conversation context
+│   ├── memory/                 # Vector database
+│   └── utils/                  # Utilities (logging, etc.)
+├── tests/                      # Test suite
+├── config.yaml.example         # Example configuration
+├── requirements.txt            # Python dependencies
+└── README.md                   # This file
+```
+
+## Usage
+
+Once the bot is running:
+
+1. Start a conversation with your bot on Telegram
+2. Send messages - the bot will process them through the AI agent
+3. The agent can:
+   - Answer questions
+   - Read and write to Notion pages
+   - Read and create Google Calendar events
+   - Ask follow-up questions for clarification
+   - Chain multiple tool calls for complex tasks
+
+## Development
+
+### Adding New Tools
+
+1. Create a new tool class inheriting from `BaseTool` in `src/tools/`
+2. Implement `execute()`, `get_schema()`, and optionally `validate_input()`
+3. Register the tool in `ToolRegistry.initialize_tools()`
+
+### Adding New LLM Providers
+
+1. Create a new LLM class inheriting from `BaseLLM` in `src/llm/`
+2. Implement `generate()`, `stream_generate()`, and `get_model_name()`
+3. Add provider configuration to `config_schema.py`
+4. Add provider creation logic to `create_llm()` in `main.py`
+
+## Troubleshooting
+
+### Bot Not Responding
+
+- Check that your bot token is correct
+- Verify the chat ID is in `allowed_conversations`
+- Check logs for error messages
+
+### LLM Errors
+
+- Verify API keys are correct
+- Check network connectivity
+- For Ollama, ensure the service is running locally
+
+### Database Errors
+
+- Ensure write permissions in the project directory
+- Check that SQLite is available
+
+## License
+
+[Add your license here]
+
+## Contributing
+
+[Add contribution guidelines here]
+

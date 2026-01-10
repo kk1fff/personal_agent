@@ -1,0 +1,57 @@
+# Personal Agent System Configuration
+# Copy this file to config.yaml and fill in your credentials
+
+telegram:
+  bot_token: "YOUR_BOT_TOKEN"
+  mode: "poll"  # or "webhook"
+  webhook_url: ""  # required if mode is webhook
+
+allowed_conversations:
+  - chat_id: 123456789
+  - chat_id: -987654321  # group chat (negative ID)
+
+allowed_users:
+  - user_id: 123456789
+
+llm:
+  provider: "ollama"  # or "openai" or "gemini"
+  
+  # Ollama configuration (for local LLM)
+  ollama:
+    base_url: "http://localhost:11434"
+    model: "llama2"
+    temperature: 0.7
+    max_tokens: 2048
+    context_window: 4096
+  
+  # OpenAI configuration (for ChatGPT)
+  openai:
+    api_key: "YOUR_OPENAI_API_KEY"
+    model: "gpt-3.5-turbo"
+    temperature: 0.7
+    max_tokens: 2048
+    organization_id: ""  # optional
+  
+  # Gemini configuration (for Google Gemini)
+  gemini:
+    api_key: "YOUR_GEMINI_API_KEY"
+    model: "gemini-pro"
+    temperature: 0.7
+    max_tokens: 2048
+    safety_settings: null  # optional
+
+tools:
+  notion:
+    api_key: "YOUR_NOTION_API_KEY"
+  
+  google_calendar:
+    # Option 1: Use credentials file
+    credentials_path: "path/to/credentials.json"
+    # Option 2: Use service account
+    service_account_email: ""
+    service_account_key: ""
+
+database:
+  conversation_db: "conversations.db"
+  vector_db_path: "vector_db"
+
