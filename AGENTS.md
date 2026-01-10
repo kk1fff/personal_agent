@@ -12,3 +12,8 @@
 # Check in
 1. Everytime one an agent operation is done, it should be checked in to a breach called `wip/YYYYMMDD_HHMMSS/<underscored separated summary>` time stamp of the branch should be the UTC time.
 2. Never check into main.
+
+# Test
+1. Always include test and implement the core module in a way that is test able.
+2. Every time before a coding job is done, run tests to ensure all test passes.
+3. Every time when a new components is implemented, add test for it.
