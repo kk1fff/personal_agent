@@ -11,7 +11,7 @@ from .models import Message
 class ConversationDB:
     """Manages conversation storage in SQLite database."""
 
-    def __init__(self, db_path: str = "conversations.db"):
+    def __init__(self, db_path: str = "data/conversations.db"):
         """
         Initialize conversation database.
 
@@ -25,6 +25,10 @@ class ConversationDB:
         """Initialize database schema."""
         if self._initialized:
             return
+
+        # Ensure directory exists
+        db_path_obj = Path(self.db_path)
+        db_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(

@@ -89,8 +89,8 @@ class ToolsConfig(BaseModel):
 class DatabaseConfig(BaseModel):
     """Database configuration."""
 
-    conversation_db: str = Field(default="conversations.db", description="Conversation database path")
-    vector_db_path: str = Field(default="vector_db", description="Vector database path")
+    conversation_db: str = Field(default="data/conversations.db", description="Conversation database path")
+    vector_db_path: str = Field(default="data/vector_db", description="Vector database path")
 
 
 class AppConfig(BaseModel):

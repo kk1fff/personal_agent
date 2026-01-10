@@ -33,8 +33,8 @@ def setup_logging(
 
     # Create logs directory if needed
     if log_file is None:
-        logs_dir = Path("logs")
-        logs_dir.mkdir(exist_ok=True)
+        logs_dir = Path("data/logs")
+        logs_dir.mkdir(parents=True, exist_ok=True)
         # Use local datetime for filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file = logs_dir / f"log_{timestamp}.log"
