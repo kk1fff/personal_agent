@@ -12,7 +12,7 @@ except ImportError:
 class VectorStore:
     """Vector database for storing and retrieving conversation embeddings."""
 
-    def __init__(self, db_path: str = "vector_db", collection_name: str = "conversations"):
+    def __init__(self, db_path: str = "data/vector_db", collection_name: str = "conversations"):
         """
         Initialize vector store.
 

@@ -52,6 +52,6 @@ tools:
     service_account_key: ""
 
 database:
-  conversation_db: "conversations.db"
-  vector_db_path: "vector_db"
+  conversation_db: "data/conversations.db"
+  vector_db_path: "data/vector_db"
 

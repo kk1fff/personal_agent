@@ -94,12 +94,12 @@ python -m src.main -vvv config.yaml
 
 ### Log Files
 
-By default, all logs are saved to `logs/log_YYYYMMDD_HHMMSS.log` with timestamps in local time. Log files include:
+By default, all logs are saved to `data/logs/log_YYYYMMDD_HHMMSS.log` with timestamps in local time. Log files include:
 - All log levels (regardless of console verbosity)
 - Function names and line numbers
 - Detailed timestamps
 
-Log files are automatically created in the `logs/` directory.
+Log files are automatically created in the `data/logs/` directory.
 
 ## Testing
 
@@ -176,10 +176,16 @@ personal_agent/
 │   ├── memory/                 # Vector database
 │   └── utils/                  # Utilities (logging, etc.)
 ├── tests/                      # Test suite
+├── data/                       # Persistent data (auto-created)
+│   ├── conversations.db        # SQLite conversation database
+│   ├── vector_db/              # Vector database directory
+│   └── logs/                   # Log files directory
 ├── config.yaml.example         # Example configuration
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
 ```
+
+**Note**: The `data/` folder is automatically created when the application runs. It contains all persistent files including databases, vector stores, and logs. This folder is excluded from version control via `.gitignore`.
 
 ## Usage
 
@@ -225,8 +231,9 @@ Once the bot is running:
 
 ### Database Errors
 
-- Ensure write permissions in the project directory
+- Ensure write permissions in the project directory (specifically for the `data/` folder)
 - Check that SQLite is available
+- Verify the `data/` directory can be created automatically
 
 ## License
 
