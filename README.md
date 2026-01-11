@@ -57,6 +57,29 @@ The `config.yaml` file contains all system configuration. Key sections:
 
 See `config.yaml.example` for a complete example with all options.
 
+### @Mention Filtering (Optional)
+
+Control when the bot responds to messages in group chats:
+
+```yaml
+telegram:
+  bot_token: "YOUR_TOKEN"
+  mode: "poll"
+  require_mention: true  # Enable @mention filtering
+  # bot_username: "YourBotName"  # Optional - auto-detected if omitted
+```
+
+When `require_mention: true`:
+- Bot stores ALL messages in allowed conversations (maintains full conversation context)
+- Bot only RESPONDS to messages that @mention it (e.g., "@BotName hello")
+- Non-mentioned messages are saved to database but don't trigger a response
+- Useful in group chats to prevent spam responses while maintaining conversation awareness
+- Bot username is auto-detected from Telegram API if not configured
+
+When `require_mention: false` (default):
+- Bot responds to all messages in allowed conversations
+- Traditional behavior for 1-on-1 chats
+
 ## Launching the System
 
 ### Basic Launch

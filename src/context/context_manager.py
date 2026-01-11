@@ -53,6 +53,7 @@ class ConversationContextManager:
         message: str,
         role: str,
         message_id: Optional[int] = None,
+        raw_json: Optional[str] = None,
     ) -> None:
         """
         Save a message to the conversation database.
@@ -63,8 +64,9 @@ class ConversationContextManager:
             message: Message content
             role: Message role ("user" or "assistant")
             message_id: Optional Telegram message ID
+            raw_json: Optional raw JSON from Telegram update
         """
-        await self.db.save_message(chat_id, user_id, message, role, message_id)
+        await self.db.save_message(chat_id, user_id, message, role, message_id, raw_json)
 
     async def get_recent_messages(
         self, chat_id: int, limit: Optional[int] = None

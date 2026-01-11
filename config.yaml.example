@@ -5,6 +5,8 @@ telegram:
   bot_token: "YOUR_BOT_TOKEN"
   mode: "poll"  # or "webhook"
   webhook_url: ""  # required if mode is webhook
+  require_mention: false  # Set to true to enable @mention filtering
+  # bot_username: "YourBotName"  # Optional - auto-detected if not provided
 
 allowed_conversations:
   - chat_id: 123456789

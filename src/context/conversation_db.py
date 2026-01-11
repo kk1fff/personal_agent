@@ -40,14 +40,27 @@ class ConversationDB:
                     message_text TEXT NOT NULL,
                     role TEXT NOT NULL,
                     timestamp TEXT NOT NULL,
-                    message_id INTEGER
+                    message_id INTEGER,
+                    raw_json TEXT
                 )
                 """
             )
             await db.execute(
                 """
-                CREATE INDEX IF NOT EXISTS idx_chat_id_timestamp 
+                CREATE INDEX IF NOT EXISTS idx_chat_id_timestamp
                 ON messages(chat_id, timestamp)
+                """
+            )
+            await db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_message_id
+                ON messages(message_id)
+                """
+            )
+            await db.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_chat_id
+                ON messages(chat_id)
                 """
             )
             await db.commit()
@@ -61,6 +74,7 @@ class ConversationDB:
         message_text: str,
         role: str,
         message_id: Optional[int] = None,
+        raw_json: Optional[str] = None,
     ) -> None:
         """
         Save a message to the database.
@@ -71,6 +85,7 @@ class ConversationDB:
             message_text: Message content
             role: Message role ("user" or "assistant")
             message_id: Optional Telegram message ID
+            raw_json: Optional raw JSON from Telegram update
         """
         await self.initialize()
 
@@ -79,10 +94,10 @@ class ConversationDB:
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
-                INSERT INTO messages (chat_id, user_id, message_text, role, timestamp, message_id)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO messages (chat_id, user_id, message_text, role, timestamp, message_id, raw_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
-                (chat_id, user_id, message_text, role, timestamp, message_id),
+                (chat_id, user_id, message_text, role, timestamp, message_id, raw_json),
             )
             await db.commit()
 
@@ -105,7 +120,7 @@ class ConversationDB:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """
-                SELECT id, chat_id, user_id, message_text, role, timestamp, message_id
+                SELECT id, chat_id, user_id, message_text, role, timestamp, message_id, raw_json
                 FROM messages
                 WHERE chat_id = ?
                 ORDER BY timestamp ASC
@@ -125,6 +140,7 @@ class ConversationDB:
                     role=row["role"],
                     timestamp=datetime.fromisoformat(row["timestamp"]),
                     message_id=row["message_id"],
+                    raw_json=row["raw_json"],
                 )
             )
 
@@ -146,7 +162,7 @@ class ConversationDB:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """
-                SELECT id, chat_id, user_id, message_text, role, timestamp, message_id
+                SELECT id, chat_id, user_id, message_text, role, timestamp, message_id, raw_json
                 FROM messages
                 WHERE chat_id = ?
                 ORDER BY timestamp ASC
@@ -165,6 +181,7 @@ class ConversationDB:
                     role=row["role"],
                     timestamp=datetime.fromisoformat(row["timestamp"]),
                     message_id=row["message_id"],
+                    raw_json=row["raw_json"],
                 )
             )
 

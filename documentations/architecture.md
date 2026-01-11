@@ -69,11 +69,13 @@ The system follows a modular architecture with clear separation of concerns:
 
 1. **Message Reception**: Telegram messages arrive via poll or webhook
 2. **Validation**: Message extractor validates chat/user IDs against configuration
-3. **Storage**: Valid messages are stored in SQLite conversation database
-4. **Context Retrieval**: Recent conversation history is retrieved for context
-5. **Agent Processing**: Agent processes message with LLM and available tools
-6. **Tool Execution**: Tools execute with conversation context when needed
-7. **Response**: Agent response is sent back to Telegram and stored
+3. **Mention Detection**: Check if bot is @mentioned (sets is_mentioned flag)
+4. **Storage**: ALL valid messages stored in SQLite with raw JSON
+5. **Response Decision**: Only respond if bot was mentioned (when enabled)
+6. **Context Retrieval**: Recent conversation history retrieved (all messages)
+7. **Agent Processing**: Agent processes message with LLM and tools (if responding)
+8. **Tool Execution**: Tools execute with conversation context when needed
+9. **Response**: Agent response sent to Telegram and stored
 
 ## Constraints
 
@@ -108,8 +110,16 @@ The system follows a modular architecture with clear separation of concerns:
   - `client.py`: Main Telegram client wrapper
   - `poll_handler.py`: Polling mode handler
   - `webhook_handler.py`: Webhook mode handler
-  - `message_extractor.py`: Message extraction and validation
+  - `message_extractor.py`: Message extraction, validation, and @mention detection
 - **Dependencies**: `python-telegram-bot`
+
+#### Message Filtering and Response Control
+
+- **Conversation Filtering**: Only allowed chat_ids and user_ids are processed
+- **@Mention Detection**: Optionally require bot @mention to respond
+- **Full Context Storage**: ALL messages stored regardless of mention status
+- **Selective Response**: Bot only responds to @mentioned messages (when enabled)
+- **Auto-Detection**: Bot username automatically detected from Telegram API
 
 ### 3. Agent Processor (`src/agent/`)
 - **Purpose**: Core AI agent orchestration
@@ -146,6 +156,23 @@ The system follows a modular architecture with clear separation of concerns:
   - `context_manager.py`: Context retrieval and management
   - `models.py`: Data models for conversations
 - **Dependencies**: `aiosqlite`
+
+#### Database Schema
+
+**Table: messages**
+- `id`: Primary key (auto-increment)
+- `chat_id`: Telegram chat ID (indexed)
+- `user_id`: Telegram user ID
+- `message_text`: Message content
+- `role`: "user" or "assistant"
+- `timestamp`: ISO format UTC timestamp
+- `message_id`: Telegram message ID (indexed)
+- `raw_json`: Full Telegram update JSON for debugging
+
+**Indexes:**
+- `idx_chat_id_timestamp`: Fast recent message retrieval
+- `idx_message_id`: Fast message ID lookups
+- `idx_chat_id`: Fast chat filtering
 
 ### 7. Memory System (`src/memory/`)
 - **Purpose**: Long-term memory storage using vector database
@@ -268,14 +295,16 @@ The system follows a modular architecture with clear separation of concerns:
 
 1. Telegram message received
 2. Message extractor validates chat/user IDs
-3. Message stored in conversation database
-4. Context manager retrieves recent messages
-5. Agent processor processes message with context
-6. Agent may call tools (with context)
-7. Tools execute and return results
-8. Agent generates response
-9. Response sent to Telegram
-10. Response stored in database
+3. Message extractor checks if bot is @mentioned
+4. Message stored in conversation database (with raw JSON)
+5. If not mentioned (and require_mention enabled), exit without responding
+6. Context manager retrieves recent messages (all messages, mentioned or not)
+7. Agent processor processes message with context
+8. Agent may call tools (with context)
+9. Tools execute and return results
+10. Agent generates response
+11. Response sent to Telegram
+12. Response stored in database
 
 ### Tool Execution Flow
 

@@ -10,6 +10,8 @@ class TelegramConfig(BaseModel):
     bot_token: str = Field(..., description="Telegram bot token")
     mode: str = Field(default="poll", description="Mode: 'poll' or 'webhook'")
     webhook_url: Optional[str] = Field(default=None, description="Webhook URL (required if mode is webhook)")
+    require_mention: bool = Field(default=False, description="Only respond when bot is @mentioned")
+    bot_username: Optional[str] = Field(default=None, description="Bot username (auto-detected if not provided)")
 
 
 class AllowedConversation(BaseModel):
