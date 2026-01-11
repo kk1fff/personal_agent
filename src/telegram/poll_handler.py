@@ -1,10 +1,13 @@
 """Poll mode handler for Telegram."""
 
 import asyncio
+import logging
 from typing import Callable, Optional
 
 from telegram import Update
 from telegram.ext import Application, ContextTypes, MessageHandler, filters
+
+logger = logging.getLogger(__name__)
 
 
 class PollHandler:
@@ -44,6 +47,12 @@ class PollHandler:
         # Start polling
         await self.application.initialize()
         await self.application.start()
+
+        # Clear any existing webhook before polling
+        logger.info("Clearing any existing webhook configuration...")
+        await self.application.bot.delete_webhook(drop_pending_updates=True)
+        logger.info("✓ Webhook cleared, starting polling")
+
         await self.application.updater.start_polling(
             poll_interval=self.poll_interval
         )
