@@ -145,51 +145,87 @@ async def process_message(
 
 async def main():
     """Main entry point."""
+    logger.info("=" * 60)
+    logger.info("Personal Agent System - Starting")
+    logger.info("=" * 60)
+
     # Load configuration (filter out verbosity flags)
     args = [arg for arg in sys.argv[1:] if arg not in ["-v", "-vv", "-vvv"]]
     config_path = args[0] if args else "config.yaml"
-    logger.info(f"Loading configuration from {config_path}")
+    logger.info(f"[1/7] Loading configuration from: {config_path}")
 
     try:
         config = load_config(config_path)
+        logger.info(f"✓ Configuration loaded successfully")
     except Exception as e:
-        logger.error(f"Failed to load configuration: {e}")
+        logger.error(f"✗ Failed to load configuration: {e}")
         sys.exit(1)
 
     # Initialize database
-    logger.info("Initializing conversation database...")
+    logger.info(f"[2/7] Initializing conversation database")
+    logger.info(f"  Database path: {config.database.conversation_db}")
     conversation_db = ConversationDB(config.database.conversation_db)
     await conversation_db.initialize()
+    logger.info("✓ Conversation database ready")
 
     # Initialize context manager
+    logger.info("[3/7] Initializing context manager")
     context_manager = ConversationContextManager(conversation_db)
+    logger.info("✓ Context manager ready")
 
     # Initialize vector store (optional, for memory)
     vector_store = None
     embedding_generator = None
+    logger.info(f"[4/7] Initializing vector store")
+    logger.info(f"  Vector DB path: {config.database.vector_db_path}")
     try:
         vector_store = VectorStore(config.database.vector_db_path)
         embedding_generator = EmbeddingGenerator()
-        logger.info("Vector store initialized")
-    except ImportError:
+        logger.info("✓ Vector store ready - Memory features enabled")
+    except ImportError as e:
         logger.warning(
-            "Vector store dependencies not available. Memory features disabled."
+            f"✗ Vector store dependencies not available: {e}"
         )
+        logger.warning("  Memory features disabled")
 
     # Create LLM
-    logger.info(f"Initializing LLM: {config.llm.provider}")
+    logger.info(f"[5/7] Initializing LLM")
+    logger.info(f"  Provider: {config.llm.provider}")
+
+    # Log provider-specific details
+    if config.llm.provider.lower() == "ollama":
+        logger.info(f"  Model: {config.llm.ollama.model}")
+        logger.info(f"  Base URL: {config.llm.ollama.base_url}")
+        logger.info(f"  Temperature: {config.llm.ollama.temperature}")
+        logger.info(f"  Max tokens: {config.llm.ollama.max_tokens}")
+        if config.llm.ollama.context_window:
+            logger.info(f"  Context window: {config.llm.ollama.context_window}")
+    elif config.llm.provider.lower() == "openai":
+        logger.info(f"  Model: {config.llm.openai.model}")
+        logger.info(f"  Temperature: {config.llm.openai.temperature}")
+        logger.info(f"  Max tokens: {config.llm.openai.max_tokens}")
+    elif config.llm.provider.lower() == "gemini":
+        logger.info(f"  Model: {config.llm.gemini.model}")
+        logger.info(f"  Temperature: {config.llm.gemini.temperature}")
+        logger.info(f"  Max tokens: {config.llm.gemini.max_tokens}")
+
     llm = create_llm(config)
+    logger.info(f"✓ LLM ready: {llm.get_model_name()}")
 
     # Initialize Telegram client
-    logger.info(f"Initializing Telegram client (mode: {config.telegram.mode})")
+    logger.info(f"[6/7] Initializing Telegram client")
+    logger.info(f"  Mode: {config.telegram.mode}")
+    if config.telegram.mode == "webhook":
+        logger.info(f"  Webhook URL: {config.telegram.webhook_url}")
     telegram_client = TelegramClient(
         bot_token=config.telegram.bot_token,
         mode=config.telegram.mode,
         webhook_url=config.telegram.webhook_url,
     )
+    logger.info("✓ Telegram client ready")
 
     # Initialize tool registry
-    logger.info("Initializing tools...")
+    logger.info("[7/7] Initializing tools")
 
     async def send_message_callback(chat_id: int, text: str):
         """Callback for tools to send messages."""
@@ -198,15 +234,25 @@ async def main():
     tool_registry = ToolRegistry()
     tool_registry.initialize_tools(config, send_message_callback)
 
+    # Log registered tools
+    registered_tools = tool_registry.get_all_tools()
+    logger.info(f"  Registered tools ({len(registered_tools)}):")
+    for tool in registered_tools:
+        logger.info(f"    - {tool.get_name()}: {tool.get_description()}")
+    logger.info("✓ Tools ready")
+
     # Initialize agent processor
-    logger.info("Initializing agent processor...")
+    logger.info("Initializing agent processor")
     agent = AgentProcessor(
         llm=llm,
         tools=tool_registry.get_all_tools(),
     )
+    logger.info("✓ Agent processor ready")
 
     # Initialize message extractor
+    logger.info("Initializing message extractor")
     message_extractor = MessageExtractor(config)
+    logger.info("✓ Message extractor ready")
 
     # Create message handler
     async def message_handler(update: Update):
@@ -220,22 +266,43 @@ async def main():
         )
 
     # Start Telegram client
-    logger.info("Starting Telegram bot...")
+    logger.info("=" * 60)
+    logger.info("Starting Telegram bot")
+    logger.info("=" * 60)
     try:
         if config.telegram.mode == "poll":
+            logger.info("Starting polling mode...")
             await telegram_client.start_polling(message_handler)
         else:
+            logger.info("Starting webhook mode...")
             await telegram_client.start_webhook(message_handler)
 
-        logger.info("Bot is running. Press Ctrl+C to stop.")
+        logger.info("=" * 60)
+        logger.info("✓ SYSTEM READY - Bot is now listening for messages")
+        logger.info("=" * 60)
+        logger.info(f"  LLM: {llm.get_model_name()}")
+        logger.info(f"  Mode: {config.telegram.mode}")
+        logger.info(f"  Tools: {len(registered_tools)} registered")
+        logger.info("")
+        logger.info("Press Ctrl+C to stop")
+        logger.info("=" * 60)
+
         # Keep running
         while True:
             await asyncio.sleep(1)
 
     except KeyboardInterrupt:
-        logger.info("Shutting down...")
+        logger.info("")
+        logger.info("=" * 60)
+        logger.info("Shutdown initiated")
+        logger.info("=" * 60)
     finally:
+        logger.info("Stopping Telegram client...")
         await telegram_client.stop()
+        logger.info("✓ Telegram client stopped")
+        logger.info("=" * 60)
+        logger.info("✓ Personal Agent System shutdown complete")
+        logger.info("=" * 60)
 
 
 if __name__ == "__main__":

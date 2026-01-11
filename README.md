@@ -71,24 +71,68 @@ Or specify a custom config file:
 python -m src.main /path/to/config.yaml
 ```
 
+### Startup Information
+
+When the system starts, it displays detailed status information including:
+
+1. **Configuration Loading** - Shows the config file being used
+2. **Database Initialization** - Displays database paths and initialization status
+3. **Context Manager** - Confirms context management is ready
+4. **Vector Store** - Shows vector database path and memory feature status
+5. **LLM Initialization** - Displays:
+   - Provider (Ollama, OpenAI, or Gemini)
+   - Model name
+   - Base URL (for Ollama)
+   - Temperature setting
+   - Max tokens
+   - Context window size (if applicable)
+6. **Telegram Client** - Shows connection mode (poll/webhook)
+7. **Tools Registration** - Lists all registered tools with their descriptions
+8. **System Ready** - Final confirmation showing:
+   - LLM model in use
+   - Connection mode
+   - Number of registered tools
+
+Example startup output:
+```
+============================================================
+Personal Agent System - Starting
+============================================================
+[1/7] Loading configuration from: config.yaml
+✓ Configuration loaded successfully
+[2/7] Initializing conversation database
+  Database path: data/conversations.db
+✓ Conversation database ready
+...
+============================================================
+✓ SYSTEM READY - Bot is now listening for messages
+============================================================
+  LLM: gemma3:7b
+  Mode: poll
+  Tools: 5 registered
+
+Press Ctrl+C to stop
+============================================================
+```
+
 ### Verbosity Levels
 
 Control logging verbosity using `-v`, `-vv`, or `-vvv` flags:
 
 - **No flag** (default): WARNING level - only warnings and errors
-- **-v**: INFO level - informational messages
+- **-v**: INFO level - informational messages (recommended for normal operation)
 - **-vv**: DEBUG level - detailed debugging information
 - **-vvv**: DEBUG level with maximum detail
 
 Examples:
 ```bash
-# Info level logging
+# Info level logging (shows startup details and message processing)
 python -m src.main -v
 
-# Debug level logging
+# Debug level logging (shows detailed internal operations)
 python -m src.main -vv
 
-# Maximum verbosity
+# Maximum verbosity (includes all debug information)
 python -m src.main -vvv config.yaml
 ```
 
