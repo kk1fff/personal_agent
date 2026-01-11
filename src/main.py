@@ -210,7 +210,29 @@ async def main():
         logger.info(f"  Max tokens: {config.llm.gemini.max_tokens}")
 
     llm = create_llm(config)
-    logger.info(f"✓ LLM ready: {llm.get_model_name()}")
+    logger.info(f"✓ LLM initialized: {llm.get_model_name()}")
+
+    # Validate LLM is working
+    logger.info("  Validating LLM connection...")
+    try:
+        await llm.validate()
+    except Exception as e:
+        logger.error(f"✗ LLM validation failed: {e}")
+        logger.error("  Please check that:")
+
+        if config.llm.provider.lower() == "ollama":
+            logger.error(f"    - Ollama is running at {config.llm.ollama.base_url}")
+            logger.error(f"    - Model '{config.llm.ollama.model}' is installed")
+            logger.error(f"  Run: ollama list (to see installed models)")
+            logger.error(f"  Run: ollama pull {config.llm.ollama.model} (to install the model)")
+        elif config.llm.provider.lower() == "openai":
+            logger.error(f"    - API key is valid")
+            logger.error(f"    - Model '{config.llm.openai.model}' is accessible")
+        elif config.llm.provider.lower() == "gemini":
+            logger.error(f"    - API key is valid")
+            logger.error(f"    - Model '{config.llm.gemini.model}' is accessible")
+
+        sys.exit(1)
 
     # Initialize Telegram client
     logger.info(f"[6/7] Initializing Telegram client")

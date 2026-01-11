@@ -51,3 +51,16 @@ class BaseLLM(ABC):
         """
         pass
 
+    async def validate(self) -> None:
+        """
+        Validate that the LLM is accessible and working.
+
+        Default implementation makes a simple test call.
+        Subclasses can override for more specific validation.
+
+        Raises:
+            Exception: If validation fails
+        """
+        # Default implementation: make a simple test call
+        await self.generate("Hello", system_prompt="Respond with just 'Hi'.")
+

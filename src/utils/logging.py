@@ -15,15 +15,16 @@ def setup_logging(
     Set up logging with verbosity levels and file output.
 
     Args:
-        verbosity: Verbosity level (0=WARNING, 1=INFO, 2=DEBUG, 3=DEBUG with more detail)
+        verbosity: Verbosity level (0=INFO (default), 1=INFO, 2=DEBUG, 3=DEBUG)
         log_file: Optional log file path. If None, uses default pattern.
 
     Returns:
         Configured logger instance
     """
     # Determine log level based on verbosity
+    # Default shows INFO and above (startup messages, errors)
     if verbosity == 0:
-        log_level = logging.WARNING
+        log_level = logging.INFO
     elif verbosity == 1:
         log_level = logging.INFO
     elif verbosity == 2:
@@ -50,8 +51,10 @@ def setup_logging(
     root_logger.handlers.clear()
 
     # Console handler with verbosity-based level
+    # But always show ERROR and CRITICAL messages
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(log_level)
+    console_level = min(log_level, logging.ERROR)  # Never hide ERROR or CRITICAL
+    console_handler.setLevel(console_level)
     console_format = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
