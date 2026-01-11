@@ -3,7 +3,9 @@
 from typing import Any, Dict, List, Optional
 
 from pydantic_ai import Agent
-from pydantic_ai.models import Model
+from pydantic_ai.messages import ModelRequest, TextPart
+from pydantic_ai.models import Model, ModelMessage, ModelResponse, ModelSettings, ModelRequestParameters
+from pydantic_ai.usage import RequestUsage
 
 from ..context.models import ConversationContext
 from ..llm.base import BaseLLM
@@ -14,34 +16,85 @@ from .prompts import SYSTEM_PROMPT
 class PydanticAIModelAdapter(Model):
     """Adapter to use our BaseLLM with pydantic_ai."""
 
-    def __init__(self, llm: BaseLLM):
+    def __init__(self, llm: BaseLLM, system_prompt: Optional[str] = None):
         """
         Initialize adapter.
 
         Args:
             llm: BaseLLM instance
+            system_prompt: System prompt for the model
         """
         self.llm = llm
+        self._system_prompt = system_prompt or ""
         super().__init__()
 
-    async def run(self, prompt: str, system_prompt: Optional[str] = None, **kwargs) -> str:
-        """
-        Run the model.
-
-        Args:
-            prompt: User prompt
-            system_prompt: System prompt
-            **kwargs: Additional parameters
-
-        Returns:
-            Generated response
-        """
-        return await self.llm.generate(prompt, system_prompt, **kwargs)
+    @property
+    def system(self) -> str:
+        """Get system prompt."""
+        return self._system_prompt
 
     @property
     def model_name(self) -> str:
         """Get model name."""
         return self.llm.get_model_name()
+
+    async def request(
+        self,
+        messages: List[ModelMessage],
+        model_settings: Optional[ModelSettings] = None,
+        model_request_parameters: Optional[ModelRequestParameters] = None,
+    ) -> ModelResponse:
+        """
+        Make a request to the LLM.
+
+        Args:
+            messages: List of model messages
+            model_settings: Optional model settings
+            model_request_parameters: Optional request parameters
+
+        Returns:
+            ModelResponse with the generated text
+        """
+        # Convert messages to a prompt string
+        prompt_parts = []
+        system_prompt = self._system_prompt
+
+        for msg in messages:
+            if isinstance(msg, ModelRequest):
+                # Extract text content from the message parts
+                if hasattr(msg, 'parts'):
+                    for part in msg.parts:
+                        if isinstance(part, TextPart):
+                            prompt_parts.append(part.content)
+                        elif hasattr(part, 'content'):
+                            prompt_parts.append(part.content)
+                        elif hasattr(part, 'text'):
+                            prompt_parts.append(part.text)
+
+        # Combine prompt parts
+        user_prompt = "\n".join(prompt_parts) if prompt_parts else ""
+
+        # Call the LLM
+        response_text = await self.llm.generate(
+            user_prompt,
+            system_prompt=system_prompt,
+        )
+
+        # Create response parts (TextPart uses 'content' not 'text')
+        response_parts = [TextPart(content=response_text)]
+
+        # Create usage (simplified - we don't have token counts from our LLM)
+        usage = RequestUsage(
+            input_tokens=0,  # We don't have token counting
+            output_tokens=0,  # We don't have token counting
+        )
+
+        # Create and return ModelResponse
+        return ModelResponse(
+            parts=response_parts,
+            usage=usage,
+            model_name=self.model_name,
+        )
 
 
 class AgentResponse:
@@ -88,10 +141,9 @@ class AgentProcessor:
         self.tools = {tool.get_name(): tool for tool in tools}
 
         # Create pydantic_ai agent
-        model = PydanticAIModelAdapter(llm)
+        model = PydanticAIModelAdapter(llm, system_prompt=system_prompt)
         self.agent = Agent(
             model=model,
-            system_prompt=system_prompt,
         )
 
         # Register tools with the agent

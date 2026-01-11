@@ -125,7 +125,7 @@ The system follows a modular architecture with clear separation of concerns:
   - `ollama_llm.py`: Ollama (local LLM) implementation
   - `openai_llm.py`: OpenAI (ChatGPT) implementation
   - `gemini_llm.py`: Google Gemini implementation
-- **Dependencies**: `ollama`, `openai`, `google-generativeai`
+- **Dependencies**: `ollama`, `openai`, `google-genai`
 
 ### 5. Tool System (`src/tools/`)
 - **Purpose**: Pluggable tool system for extending agent capabilities
@@ -233,7 +233,7 @@ The system follows a modular architecture with clear separation of concerns:
 ### LLM Providers
 - **ollama**: Local LLM client
 - **openai**: OpenAI API client
-- **google-generativeai**: Google Gemini API client
+- **google-genai**: Google Gemini API client
 
 ### Tool Integrations
 - **notion-client**: Notion API client

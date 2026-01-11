@@ -3,7 +3,7 @@ pydantic-ai>=0.0.14
 python-telegram-bot>=20.0
 ollama>=0.1.0
 openai>=1.0.0
-google-generativeai>=0.3.0
+google-genai>=0.1.0
 
 # Supporting dependencies
 pydantic>=2.0.0
@@ -12,7 +12,11 @@ aiohttp>=3.9.0
 aiosqlite>=0.19.0
 notion-client>=2.2.0
 google-api-python-client>=2.100.0
-google-auth>=2.23.0
+google-auth>=2.46.0,<3.0.0
+# Note: google-auth-oauthlib has a version conflict with google-auth>=2.46.0
+# but the code works despite the warning. google-auth-oauthlib requires google-auth<2.42.0,
+# while google-genai requires google-auth>=2.46.0. This is a known issue.
+google-auth-oauthlib>=1.0.0
 
 # Optional dependencies
 chromadb>=0.4.0
