@@ -21,3 +21,22 @@ Remember:
 - Be proactive in suggesting helpful actions when appropriate
 """
 
+
+def get_system_prompt(bot_username: str = None) -> str:
+    """
+    Get system prompt with optional bot username information.
+
+    Args:
+        bot_username: The bot's Telegram username (without @)
+
+    Returns:
+        Formatted system prompt
+    """
+    base_prompt = SYSTEM_PROMPT
+
+    if bot_username:
+        bot_info = f"\nYour Telegram username is @{bot_username}. When users mention you with @{bot_username}, they are directly addressing you."
+        return base_prompt + bot_info
+
+    return base_prompt
+

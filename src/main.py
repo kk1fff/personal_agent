@@ -8,6 +8,7 @@ from pathlib import Path
 from telegram import Update
 
 from .agent.agent_processor import AgentProcessor
+from .agent.prompts import get_system_prompt
 from .config.config_loader import load_config
 from .context.conversation_db import ConversationDB
 from .context.context_manager import ConversationContextManager
@@ -276,21 +277,14 @@ async def main():
         logger.info(f"    - {tool.get_name()}: {tool.get_description()}")
     logger.info("✓ Tools ready")
 
-    # Initialize agent processor
-    logger.info("Initializing agent processor")
-    agent = AgentProcessor(
-        llm=llm,
-        tools=tool_registry.get_all_tools(),
-    )
-    logger.info("✓ Agent processor ready")
-
     # Initialize message extractor
     logger.info("Initializing message extractor")
     message_extractor = MessageExtractor(config)
     logger.info("✓ Message extractor ready")
 
     # Auto-detect or use configured bot username
-    if config.telegram.require_mention:
+    bot_username = None
+    if config.telegram.require_mention or config.telegram.bot_username:
         bot_username = config.telegram.bot_username
 
         if not bot_username:
@@ -301,15 +295,33 @@ async def main():
                 logger.info(f"✓ Bot username detected: @{bot_username}")
             except Exception as e:
                 logger.error(f"✗ Failed to auto-detect bot username: {e}")
-                logger.error("  Set bot_username in config.yaml or disable require_mention")
-                sys.exit(1)
+                if config.telegram.require_mention:
+                    logger.error("  Set bot_username in config.yaml or disable require_mention")
+                    sys.exit(1)
+                else:
+                    logger.warning("  Continuing without bot username in system prompt")
+                    bot_username = None
         else:
             logger.info(f"Using configured bot username: @{bot_username}")
 
-        message_extractor.set_bot_username(bot_username)
-        logger.info(f"✓ @Mention filtering enabled for @{bot_username}")
-    else:
+        if bot_username and config.telegram.require_mention:
+            message_extractor.set_bot_username(bot_username)
+            logger.info(f"✓ @Mention filtering enabled for @{bot_username}")
+
+    if not config.telegram.require_mention:
         logger.info("@Mention filtering disabled - responding to all allowed messages")
+
+    # Initialize agent processor with bot username in system prompt
+    logger.info("Initializing agent processor")
+    system_prompt = get_system_prompt(bot_username)
+    agent = AgentProcessor(
+        llm=llm,
+        tools=tool_registry.get_all_tools(),
+        system_prompt=system_prompt,
+    )
+    logger.info("✓ Agent processor ready")
+    if bot_username:
+        logger.info(f"  Bot identifies as: @{bot_username}")
 
     # Create message handler
     async def message_handler(update: Update):
