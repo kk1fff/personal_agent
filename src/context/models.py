@@ -15,6 +15,7 @@ class Message:
     role: str  # "user" or "assistant"
     timestamp: datetime
     message_id: Optional[int] = None
+    raw_json: Optional[str] = None
 
 
 @dataclass

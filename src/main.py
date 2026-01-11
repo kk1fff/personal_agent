@@ -102,14 +102,26 @@ async def process_message(
             f"Processing message from chat {extracted.chat_id}, user {extracted.user_id}"
         )
 
-        # Save user message to database
+        # ALWAYS save user message to database (even if not mentioned)
         await context_manager.save_message(
             chat_id=extracted.chat_id,
             user_id=extracted.user_id,
             message=extracted.message_text,
             role="user",
             message_id=extracted.message_id,
+            raw_json=extracted.raw_json,
         )
+
+        # Check if bot was mentioned before responding
+        if not extracted.is_mentioned:
+            logger.debug(
+                f"Message from chat {extracted.chat_id} does not mention bot, "
+                "message saved but not responding"
+            )
+            return  # Exit without responding
+
+        # Only process and respond if mentioned
+        logger.info("Bot mentioned, processing with agent...")
 
         # Get conversation context
         context = await context_manager.get_context(
@@ -130,6 +142,7 @@ async def process_message(
                 user_id=extracted.user_id,
                 message=response.text,
                 role="assistant",
+                raw_json=None,  # Assistant responses don't have Telegram update JSON
             )
 
     except Exception as e:
@@ -275,6 +288,28 @@ async def main():
     logger.info("Initializing message extractor")
     message_extractor = MessageExtractor(config)
     logger.info("✓ Message extractor ready")
+
+    # Auto-detect or use configured bot username
+    if config.telegram.require_mention:
+        bot_username = config.telegram.bot_username
+
+        if not bot_username:
+            logger.info("Auto-detecting bot username from Telegram API...")
+            try:
+                bot_info = await telegram_client.bot.get_me()
+                bot_username = bot_info.username
+                logger.info(f"✓ Bot username detected: @{bot_username}")
+            except Exception as e:
+                logger.error(f"✗ Failed to auto-detect bot username: {e}")
+                logger.error("  Set bot_username in config.yaml or disable require_mention")
+                sys.exit(1)
+        else:
+            logger.info(f"Using configured bot username: @{bot_username}")
+
+        message_extractor.set_bot_username(bot_username)
+        logger.info(f"✓ @Mention filtering enabled for @{bot_username}")
+    else:
+        logger.info("@Mention filtering disabled - responding to all allowed messages")
 
     # Create message handler
     async def message_handler(update: Update):
