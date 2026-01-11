@@ -57,3 +57,27 @@ database:
   conversation_db: "data/conversations.db"
   vector_db_path: "data/vector_db"
 
+# Agent Configuration and Preferences
+agent:
+  # Agent preferences (global settings)
+  preferences:
+    # Timezone for datetime formatting in prompts
+    # Use IANA timezone names (e.g., 'America/New_York', 'Europe/London', 'Asia/Tokyo')
+    # Find valid timezones at: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+    # Common timezones:
+    #   - "UTC" - Coordinated Universal Time
+    #   - "America/New_York" - Eastern Time (US)
+    #   - "America/Los_Angeles" - Pacific Time (US)
+    #   - "Europe/London" - British Time
+    #   - "Asia/Tokyo" - Japan Standard Time
+    #   - "Australia/Sydney" - Australian Eastern Time
+    timezone: "UTC"
+
+    # Preferred response language (ISO 639-1 language code)
+    # Common codes: en (English), zh (Chinese), es (Spanish), fr (French), de (German), ja (Japanese), ko (Korean)
+    language: "en"
+
+  # Whether to inject current datetime into agent prompts
+  # Set to false if you want static prompts without time awareness
+  inject_datetime: true
+

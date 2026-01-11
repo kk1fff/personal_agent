@@ -57,6 +57,51 @@ The `config.yaml` file contains all system configuration. Key sections:
 
 See `config.yaml.example` for a complete example with all options.
 
+### Agent Preferences
+
+Configure agent behavior and prompt variables in the `agent` section:
+
+```yaml
+agent:
+  preferences:
+    # Timezone for datetime awareness (IANA timezone names)
+    timezone: "America/New_York"  # Default: "UTC"
+
+    # Preferred response language (ISO 639-1 codes)
+    language: "en"  # Default: "en" (English)
+
+  # Enable/disable current datetime injection into prompts
+  inject_datetime: true  # Default: true
+```
+
+**Available Timezone Examples:**
+- `"UTC"` - Coordinated Universal Time
+- `"America/New_York"` - Eastern Time (US)
+- `"America/Los_Angeles"` - Pacific Time (US)
+- `"Europe/London"` - British Time
+- `"Asia/Tokyo"` - Japan Standard Time
+- `"Australia/Sydney"` - Australian Eastern Time
+
+See the [full list of timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones).
+
+**Common Language Codes:**
+- `"en"` - English
+- `"es"` - Spanish
+- `"zh"` - Chinese
+- `"fr"` - French
+- `"de"` - German
+- `"ja"` - Japanese
+- `"ko"` - Korean
+
+**How It Works:**
+
+The agent's system prompt includes dynamic information:
+- Current date and time in your configured timezone
+- Timezone setting (helps agent understand scheduling context)
+- Preferred language (agent will respond in this language by default)
+
+This helps the agent provide more contextual and time-aware responses.
+
 ### @Mention Filtering (Optional)
 
 Control when the bot responds to messages in group chats:
