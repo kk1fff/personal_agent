@@ -1,5 +1,6 @@
 """Agent processor using pydantic_ai."""
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from pydantic_ai import Agent
@@ -11,6 +12,8 @@ from ..context.models import ConversationContext
 from ..llm.base import BaseLLM
 from ..tools.base import BaseTool, ToolResult
 from .prompts import SYSTEM_PROMPT
+
+logger = logging.getLogger(__name__)
 
 
 class PydanticAIModelAdapter(Model):
@@ -230,8 +233,9 @@ class AgentProcessor:
                 follow_up=follow_up,
             )
         except Exception as e:
+            logger.error(f"Error during agent command processing: {e}", exc_info=True)
             return AgentResponse(
-                text=f"I encountered an error: {str(e)}",
+                text="I'm having trouble processing your request right now. Please try again later.",
                 tool_calls=[],
                 follow_up=False,
             )

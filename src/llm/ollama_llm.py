@@ -1,10 +1,13 @@
 """Ollama LLM implementation."""
 
+import logging
 from typing import Iterator, Optional
 
 import ollama
 
 from .base import BaseLLM
+
+logger = logging.getLogger(__name__)
 
 
 class OllamaLLM(BaseLLM):
@@ -59,16 +62,23 @@ class OllamaLLM(BaseLLM):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        response = ollama.chat(
-            model=self.model,
-            messages=messages,
-            options={
-                "temperature": temperature,
-                "num_predict": max_tokens,
-            },
-        )
-
-        return response["message"]["content"]
+        try:
+            response = ollama.chat(
+                model=self.model,
+                messages=messages,
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                },
+            )
+            return response["message"]["content"]
+        except Exception as e:
+            logger.error(
+                f"Ollama LLM generation failed - Model: {self.model}, "
+                f"Base URL: {self.base_url}, Error: {e}",
+                exc_info=True
+            )
+            raise
 
     async def stream_generate(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
@@ -109,4 +119,23 @@ class OllamaLLM(BaseLLM):
     def get_model_name(self) -> str:
         """Get the model name."""
         return self.model
+
+    async def validate(self) -> None:
+        """
+        Validate that the LLM is accessible and the model exists.
+
+        Raises:
+            Exception: If validation fails (model not found, server unreachable, etc.)
+        """
+        try:
+            # Make a simple test call to verify model exists
+            logger.debug(f"Validating Ollama model: {self.model} at {self.base_url}")
+            await self.generate(
+                "Hello",
+                system_prompt="You are a helpful assistant. Respond with just 'Hi'.",
+            )
+            logger.info(f"✓ LLM validation successful: {self.model}")
+        except Exception as e:
+            logger.error(f"✗ LLM validation failed: {e}")
+            raise
 
