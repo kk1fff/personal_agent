@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from pydantic_ai import Agent
+from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import ModelRequest, TextPart
 from pydantic_ai.models import Model, ModelMessage, ModelResponse, ModelSettings, ModelRequestParameters
 from pydantic_ai.usage import RequestUsage
@@ -143,10 +143,11 @@ class AgentProcessor:
         self.system_prompt = system_prompt
         self.tools = {tool.get_name(): tool for tool in tools}
 
-        # Create pydantic_ai agent
+        # Create pydantic_ai agent with dependency injection
         model = PydanticAIModelAdapter(llm, system_prompt=system_prompt)
         self.agent = Agent(
             model=model,
+            deps_type=ConversationContext,
         )
 
         # Register tools with the agent
@@ -155,15 +156,38 @@ class AgentProcessor:
 
     def _register_tool(self, tool: BaseTool) -> None:
         """
-        Register a tool with the agent.
+        Register a tool with the pydantic_ai agent.
 
         Args:
             tool: Tool to register
         """
-        # Store tool for manual execution
-        # pydantic_ai tool registration will be handled dynamically
-        # when processing commands with context
-        pass
+        schema = tool.get_schema()
+        tool_name = schema["name"]
+        tool_description = schema["description"]
+
+        # Create wrapper that adapts BaseTool to PydanticAI signature
+        async def tool_wrapper(ctx: RunContext[ConversationContext], **kwargs) -> str:
+            """Tool wrapper for PydanticAI integration."""
+            # Extract ConversationContext from RunContext
+            context = ctx.deps
+
+            # Execute the tool
+            result = await tool.execute(context, **kwargs)
+
+            # Convert ToolResult to string for PydanticAI
+            if result.success:
+                return result.message or str(result.data) or "Success (no output)"
+            else:
+                return f"Error: {result.error or 'Unknown error'}"
+
+        # Set function metadata from schema
+        tool_wrapper.__name__ = tool_name
+        tool_wrapper.__doc__ = tool_description
+
+        # Register with agent using decorator pattern
+        self.agent.tool(tool_wrapper)
+
+        logger.debug(f"Registered tool: {tool_name}")
 
     async def process_command(
         self, message: str, context: ConversationContext
@@ -178,55 +202,30 @@ class AgentProcessor:
         Returns:
             AgentResponse with result
         """
-        # No automatic context formatting - agent receives only current message
-        # Agent must explicitly request conversation history via get_conversation_history tool
-        full_prompt = message
-
         try:
-            # Create tool functions with context injected
-            tool_functions = {}
-            for tool_name, tool in self.tools.items():
-                async def create_tool_func(tool_instance):
-                    async def tool_func(**kwargs) -> str:
-                        result = await tool_instance.execute(context, **kwargs)
-                        if result.success:
-                            if result.message:
-                                return result.message
-                            return str(result.data)
-                        else:
-                            return f"Error: {result.error}"
-
-                    return tool_func
-
-                tool_functions[tool_name] = await create_tool_func(tool)
-
-            # Register tools with agent for this run
-            # Note: pydantic_ai may require different registration
-            # This is a simplified approach - in practice, you may need to
-            # use pydantic_ai's tool decorator or function registration API
-
-            # For now, we'll use a simpler approach: call LLM directly
-            # and handle tool calls manually if needed
-            response_text = await self.llm.generate(
-                full_prompt, system_prompt=self.system_prompt
+            # Run agent with ConversationContext injected as dependency
+            result = await self.agent.run(
+                user_prompt=message,
+                deps=context,
             )
 
-            # Simple tool call detection (can be enhanced)
-            tool_calls = []
-            if any(tool_name in response_text.lower() for tool_name in self.tools.keys()):
-                # Tool might have been mentioned, but actual tool execution
-                # would need to be parsed from LLM response or handled by pydantic_ai
-                pass
+            # Extract response text from RunResult
+            # Note: May be .data or .output depending on version
+            try:
+                response_text = result.data
+            except AttributeError:
+                response_text = result.output  # Fallback for compatibility
 
             # Determine if this is a follow-up question
             follow_up = any(
                 keyword in response_text.lower()
-                for keyword in ["?", "clarify", "which", "what", "when", "where", "could you", "can you"]
+                for keyword in ["?", "clarify", "which", "what", "when",
+                              "where", "could you", "can you"]
             )
 
             return AgentResponse(
                 text=response_text,
-                tool_calls=tool_calls,
+                tool_calls=[],  # PydanticAI handles tool calls internally
                 follow_up=follow_up,
             )
         except Exception as e:
