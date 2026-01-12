@@ -1,7 +1,7 @@
 """Pydantic models for configuration validation."""
 
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class TelegramConfig(BaseModel):
@@ -95,6 +95,57 @@ class DatabaseConfig(BaseModel):
     vector_db_path: str = Field(default="data/vector_db", description="Vector database path")
 
 
+class AgentPreferencesConfig(BaseModel):
+    """Agent preferences configuration."""
+
+    timezone: str = Field(
+        default="UTC",
+        description="Default timezone (e.g., 'America/New_York', 'UTC', 'Asia/Tokyo')"
+    )
+    language: str = Field(
+        default="en",
+        description="Preferred response language (ISO 639-1 code, e.g., 'en', 'zh', 'es')"
+    )
+
+    @model_validator(mode='after')
+    def validate_timezone(self) -> 'AgentPreferencesConfig':
+        """Validate timezone string using zoneinfo."""
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+        try:
+            ZoneInfo(self.timezone)
+        except ZoneInfoNotFoundError:
+            raise ValueError(
+                f"Invalid timezone: '{self.timezone}'. "
+                f"Must be a valid IANA timezone (e.g., 'America/New_York', 'UTC', 'Asia/Tokyo')"
+            )
+        return self
+
+    @field_validator('language')
+    @classmethod
+    def validate_language_code(cls, v: str) -> str:
+        """Validate language code is 2-letter ISO 639-1 code."""
+        if not v or len(v) != 2 or not v.isalpha():
+            raise ValueError(
+                f"Invalid language code: '{v}'. "
+                f"Must be a 2-letter ISO 639-1 code (e.g., 'en', 'zh', 'es')"
+            )
+        return v.lower()
+
+
+class AgentConfig(BaseModel):
+    """Agent configuration."""
+
+    preferences: AgentPreferencesConfig = Field(
+        default_factory=AgentPreferencesConfig,
+        description="Agent preferences (timezone, language, etc.)"
+    )
+    inject_datetime: bool = Field(
+        default=True,
+        description="Whether to inject current datetime into prompts"
+    )
+
+
 class AppConfig(BaseModel):
     """Main application configuration."""
 
@@ -106,6 +157,10 @@ class AppConfig(BaseModel):
     llm: LLMConfig = Field(..., description="LLM configuration")
     tools: ToolsConfig = Field(default_factory=ToolsConfig, description="Tools configuration")
     database: DatabaseConfig = Field(default_factory=DatabaseConfig, description="Database configuration")
+    agent: AgentConfig = Field(
+        default_factory=AgentConfig,
+        description="Agent configuration and preferences"
+    )
 
     def validate(self) -> None:
         """Validate configuration consistency."""

@@ -311,9 +311,15 @@ async def main():
     if not config.telegram.require_mention:
         logger.info("@Mention filtering disabled - responding to all allowed messages")
 
-    # Initialize agent processor with bot username in system prompt
+    # Initialize agent processor with bot username and preferences in system prompt
     logger.info("Initializing agent processor")
-    system_prompt = get_system_prompt(bot_username)
+    agent_config = config.agent
+    system_prompt = get_system_prompt(
+        bot_username=bot_username,
+        timezone=agent_config.preferences.timezone,
+        language=agent_config.preferences.language,
+        inject_datetime=agent_config.inject_datetime,
+    )
     agent = AgentProcessor(
         llm=llm,
         tools=tool_registry.get_all_tools(),
@@ -322,6 +328,9 @@ async def main():
     logger.info("✓ Agent processor ready")
     if bot_username:
         logger.info(f"  Bot identifies as: @{bot_username}")
+    logger.info(f"  Timezone: {agent_config.preferences.timezone}")
+    logger.info(f"  Language: {agent_config.preferences.language}")
+    logger.info(f"  Datetime injection: {'enabled' if agent_config.inject_datetime else 'disabled'}")
 
     # Create message handler
     async def message_handler(update: Update):

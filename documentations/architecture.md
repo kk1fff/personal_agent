@@ -81,7 +81,7 @@ The system follows a modular architecture with clear separation of concerns:
 
 - **Python 3.8+**: Minimum Python version requirement
 - **Async/Await**: All I/O operations use async/await for concurrency
-- **Configuration-Driven**: System behavior controlled via YAML configuration
+- **Configuration-Driven**: System behavior controlled via YAML configuration, including agent preferences (timezone, language) and prompt variable injection
 - **Credential Security**: Credentials stored in config.yaml (excluded from git)
 - **Single Process**: Designed to run as a single process (can be scaled horizontally)
 
@@ -101,8 +101,8 @@ The system follows a modular architecture with clear separation of concerns:
 - **Purpose**: Load and validate YAML configuration
 - **Key Components**:
   - `config_loader.py`: YAML loading and validation
-  - `config_schema.py`: Pydantic models for configuration validation
-- **Dependencies**: `pyyaml`, `pydantic`
+  - `config_schema.py`: Pydantic models for configuration validation including agent preferences
+- **Dependencies**: `pyyaml`, `pydantic`, `zoneinfo` (standard library)
 
 ### 2. Telegram Integration (`src/telegram/`)
 - **Purpose**: Handle Telegram bot communication
@@ -125,8 +125,16 @@ The system follows a modular architecture with clear separation of concerns:
 - **Purpose**: Core AI agent orchestration
 - **Key Components**:
   - `agent_processor.py`: Main agent processing logic using pydantic_ai
-  - `prompts.py`: Centralized system prompts
+  - `prompts.py`: Centralized system prompts with template variable injection
 - **Dependencies**: `pydantic-ai`
+
+#### Prompt Variable Injection
+
+System prompts support template variables that are replaced at runtime:
+- Variables configured globally in `config.yaml` under `agent.preferences`
+- Timezone-aware datetime injection using Python's `zoneinfo`
+- Language preference for multilingual support
+- Template replacement in `prompts.py` using safe string formatting
 
 ### 4. LLM Abstraction Layer (`src/llm/`)
 - **Purpose**: Unified interface for multiple LLM providers
@@ -148,6 +156,43 @@ The system follows a modular architecture with clear separation of concerns:
   - `calendar_writer.py`: Google Calendar writing tool
   - `registry.py`: Centralized tool registry
 - **Dependencies**: `notion-client`, `google-api-python-client`, `google-auth`
+
+### 5.5 Agent Preferences and Prompt Variables (`src/config/`, `src/agent/prompts.py`)
+- **Purpose**: Inject dynamic variables into agent prompts and configure agent behavior
+- **Key Components**:
+  - `config_schema.py`: AgentConfig and AgentPreferencesConfig models
+  - `prompts.py`: Template variable injection functions
+- **Dependencies**: `zoneinfo` (standard library in Python 3.9+)
+
+#### Variable Injection System
+
+The system supports injecting runtime variables into agent system prompts:
+
+**Supported Variables:**
+- `{current_datetime}`: Current date and time in configured timezone (format: YYYY-MM-DD HH:MM:SS)
+- `{timezone}`: Configured timezone (IANA timezone name)
+- `{language}`: Preferred response language (ISO 639-1 code)
+
+**Configuration:**
+```yaml
+agent:
+  preferences:
+    timezone: "America/New_York"  # IANA timezone name
+    language: "en"                 # ISO 639-1 language code
+  inject_datetime: true            # Enable/disable datetime injection
+```
+
+**Template Replacement Flow:**
+1. Configuration loaded and validated (timezone checked against IANA database)
+2. `get_system_prompt()` called with preferences during agent initialization
+3. `inject_template_variables()` replaces placeholders with actual values
+4. Current datetime computed in configured timezone
+5. Final prompt passed to AgentProcessor
+
+**Backward Compatibility:**
+- All agent preferences are optional with sensible defaults
+- Existing prompts without placeholders continue to work
+- If `agent` section omitted from config, defaults to UTC/en with datetime injection enabled
 
 ### 6. Conversation Context (`src/context/`)
 - **Purpose**: Manage conversation history and context

@@ -1,5 +1,9 @@
 """Centralized system prompts for the agent."""
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from typing import Optional
+
 SYSTEM_PROMPT = """You are a helpful personal assistant agent that helps users manage their tasks, information, and schedule through Telegram.
 
 Your capabilities include:
@@ -7,12 +11,18 @@ Your capabilities include:
 - Reading and creating Google Calendar events
 - Sending messages back to users via Telegram
 
+Current Information:
+- Current datetime: {current_datetime}
+- Timezone: {timezone}
+- Preferred language: {language}
+
 When interacting with users:
 1. Be helpful, concise, and clear in your responses
 2. If you need clarification, ask follow-up questions using the chat_reply tool
 3. You can chain multiple tool calls to complete complex tasks
 4. Always confirm actions that modify data (like creating calendar events or writing to Notion)
 5. Use the conversation context to understand the user's intent and maintain continuity
+6. Respond in the preferred language ({language}) unless the user explicitly requests another language
 
 Remember:
 - You have access to recent conversation history
@@ -22,18 +32,85 @@ Remember:
 """
 
 
-def get_system_prompt(bot_username: str = None) -> str:
+def get_current_datetime(timezone: str) -> str:
     """
-    Get system prompt with optional bot username information.
+    Get current datetime formatted for prompt injection.
+
+    Args:
+        timezone: IANA timezone string (e.g., 'America/New_York', 'UTC')
+
+    Returns:
+        Formatted datetime string (YYYY-MM-DD HH:MM:SS)
+    """
+    tz = ZoneInfo(timezone)
+    now = datetime.now(tz)
+    return now.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def inject_template_variables(
+    template: str,
+    timezone: str = "UTC",
+    language: str = "en",
+    inject_datetime: bool = True,
+) -> str:
+    """
+    Inject template variables into prompt string.
+
+    This function replaces placeholders with actual values:
+    - {current_datetime} -> Current date and time in specified timezone
+    - {timezone} -> The configured timezone
+    - {language} -> The preferred language code
+
+    Args:
+        template: Template string with placeholders
+        timezone: IANA timezone string for datetime formatting
+        language: ISO 639-1 language code
+        inject_datetime: Whether to inject current datetime (if False, uses placeholder)
+
+    Returns:
+        Template with placeholders replaced by actual values
+    """
+    replacements = {
+        "timezone": timezone,
+        "language": language,
+    }
+
+    if inject_datetime:
+        replacements["current_datetime"] = get_current_datetime(timezone)
+    else:
+        # Keep placeholder if injection disabled
+        replacements["current_datetime"] = "{current_datetime}"
+
+    return template.format(**replacements)
+
+
+def get_system_prompt(
+    bot_username: Optional[str] = None,
+    timezone: str = "UTC",
+    language: str = "en",
+    inject_datetime: bool = True,
+) -> str:
+    """
+    Get system prompt with optional bot username and template variables.
 
     Args:
         bot_username: The bot's Telegram username (without @)
+        timezone: IANA timezone string for datetime formatting
+        language: ISO 639-1 language code
+        inject_datetime: Whether to inject current datetime
 
     Returns:
-        Formatted system prompt
+        Formatted system prompt with all variables injected
     """
-    base_prompt = SYSTEM_PROMPT
+    # First inject template variables
+    base_prompt = inject_template_variables(
+        SYSTEM_PROMPT,
+        timezone=timezone,
+        language=language,
+        inject_datetime=inject_datetime,
+    )
 
+    # Then add bot username if provided (existing pattern)
     if bot_username:
         bot_info = f"\nYour Telegram username is @{bot_username}. When users mention you with @{bot_username}, they are directly addressing you."
         return base_prompt + bot_info
