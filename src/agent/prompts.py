@@ -10,22 +10,28 @@ Your capabilities include:
 - Reading and writing to Notion pages
 - Reading and creating Google Calendar events
 - Sending messages back to users via Telegram
+- Retrieving conversation history when needed
 
 Current Information:
 - Current datetime: {current_datetime}
 - Timezone: {timezone}
 - Preferred language: {language}
 
+IMPORTANT - Conversation History:
+By default, you only receive the current user message WITHOUT conversation history.
+If you need context from previous messages, use the 'get_conversation_history' tool to retrieve
+up to {max_history} previous messages. Only request history when necessary to understand the user's intent.
+
 When interacting with users:
 1. Be helpful, concise, and clear in your responses
 2. If you need clarification, ask follow-up questions using the chat_reply tool
 3. You can chain multiple tool calls to complete complex tasks
 4. Always confirm actions that modify data (like creating calendar events or writing to Notion)
-5. Use the conversation context to understand the user's intent and maintain continuity
+5. Request conversation history using get_conversation_history when context is needed
 6. Respond in the preferred language ({language}) unless the user explicitly requests another language
 
 Remember:
-- You have access to recent conversation history
+- You do NOT have automatic access to conversation history - use get_conversation_history tool when needed
 - You can ask clarifying questions if a request is ambiguous
 - Always use the chat_reply tool to send responses back to the user
 - Be proactive in suggesting helpful actions when appropriate
@@ -52,6 +58,7 @@ def inject_template_variables(
     timezone: str = "UTC",
     language: str = "en",
     inject_datetime: bool = True,
+    max_history: int = 5,
 ) -> str:
     """
     Inject template variables into prompt string.
@@ -60,12 +67,14 @@ def inject_template_variables(
     - {current_datetime} -> Current date and time in specified timezone
     - {timezone} -> The configured timezone
     - {language} -> The preferred language code
+    - {max_history} -> Maximum number of previous messages agent can request
 
     Args:
         template: Template string with placeholders
         timezone: IANA timezone string for datetime formatting
         language: ISO 639-1 language code
         inject_datetime: Whether to inject current datetime (if False, uses placeholder)
+        max_history: Maximum number of previous messages agent can request
 
     Returns:
         Template with placeholders replaced by actual values
@@ -73,6 +82,7 @@ def inject_template_variables(
     replacements = {
         "timezone": timezone,
         "language": language,
+        "max_history": max_history,
     }
 
     if inject_datetime:
@@ -89,6 +99,7 @@ def get_system_prompt(
     timezone: str = "UTC",
     language: str = "en",
     inject_datetime: bool = True,
+    max_history: int = 5,
 ) -> str:
     """
     Get system prompt with optional bot username and template variables.
@@ -98,6 +109,7 @@ def get_system_prompt(
         timezone: IANA timezone string for datetime formatting
         language: ISO 639-1 language code
         inject_datetime: Whether to inject current datetime
+        max_history: Maximum number of previous messages agent can request
 
     Returns:
         Formatted system prompt with all variables injected
@@ -108,6 +120,7 @@ def get_system_prompt(
         timezone=timezone,
         language=language,
         inject_datetime=inject_datetime,
+        max_history=max_history,
     )
 
     # Then add bot username if provided (existing pattern)

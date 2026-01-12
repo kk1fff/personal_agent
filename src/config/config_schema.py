@@ -133,6 +133,17 @@ class AgentPreferencesConfig(BaseModel):
         return v.lower()
 
 
+class ContextConfig(BaseModel):
+    """Context manager configuration."""
+
+    max_history: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        description="Maximum number of previous messages agent can request"
+    )
+
+
 class AgentConfig(BaseModel):
     """Agent configuration."""
 
@@ -143,6 +154,10 @@ class AgentConfig(BaseModel):
     inject_datetime: bool = Field(
         default=True,
         description="Whether to inject current datetime into prompts"
+    )
+    context: ContextConfig = Field(
+        default_factory=ContextConfig,
+        description="Context manager configuration"
     )
 
 

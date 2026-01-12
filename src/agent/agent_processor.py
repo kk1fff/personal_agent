@@ -173,17 +173,14 @@ class AgentProcessor:
 
         Args:
             message: User message
-            context: Conversation context
+            context: Conversation context (metadata only, no automatic history)
 
         Returns:
             AgentResponse with result
         """
-        # Format conversation history for context
-        conversation_history = context.format_for_llm()
-        if conversation_history:
-            full_prompt = f"{conversation_history}\n\nUser: {message}\nAssistant:"
-        else:
-            full_prompt = message
+        # No automatic context formatting - agent receives only current message
+        # Agent must explicitly request conversation history via get_conversation_history tool
+        full_prompt = message
 
         try:
             # Create tool functions with context injected

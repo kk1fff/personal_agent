@@ -102,6 +102,43 @@ The agent's system prompt includes dynamic information:
 
 This helps the agent provide more contextual and time-aware responses.
 
+### Conversation History Management
+
+Configure how agents access conversation history in the `agent.context` section:
+
+```yaml
+agent:
+  context:
+    # Maximum number of previous messages agent can request
+    max_history: 5  # Range: 1-50, Default: 5
+```
+
+**How It Works:**
+
+By default, agents receive only the current user message WITHOUT automatic conversation history. This design:
+- Reduces token usage and processing time
+- Gives agents explicit control over when they need context
+- Prevents unnecessary history loading for simple requests
+
+**Retrieving History:**
+
+When an agent needs context from previous messages, it uses the `get_conversation_history` tool:
+- Agents can request up to `max_history` previous messages
+- The tool returns formatted conversation history (User/Assistant messages)
+- History is retrieved on-demand only when needed
+
+**Example Scenarios:**
+
+- **Simple requests** ("What's 2+2?"): No history needed, agent responds immediately
+- **Follow-up questions** ("What did I ask you earlier?"): Agent uses `get_conversation_history` to retrieve context
+- **Multi-turn tasks**: Agent requests history to maintain continuity across conversation
+
+**Configuration Tips:**
+
+- Set `max_history: 3-5` for most use cases (balances context vs. token usage)
+- Increase to `10-20` if your agent handles complex multi-turn conversations
+- Lower to `1-3` for simple Q&A bots to minimize costs
+
 ### @Mention Filtering (Optional)
 
 Control when the bot responds to messages in group chats:
