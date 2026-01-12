@@ -131,7 +131,6 @@ async def process_message(
             chat_id=extracted.chat_id,
             user_id=extracted.user_id,
             messages=[],  # Empty - agent must request history via tool
-            recent_limit=config.agent.context.max_history,
         )
 
         # Process through agent

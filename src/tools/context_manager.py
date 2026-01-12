@@ -21,7 +21,9 @@ class ContextManagerTool(BaseTool):
             name="get_conversation_history",
             description=f"Retrieve previous messages from the conversation history. "
                        f"You can request up to {max_history} previous messages. "
-                       f"Use this tool when you need context from earlier in the conversation.",
+                       f"IMPORTANT: Only use this tool when the current message alone is unclear or ambiguous "
+                       f"and you need context from earlier messages to understand the user's intent. "
+                       f"For clear, self-contained requests, respond directly without retrieving history.",
         )
         self.context_manager = context_manager
         self.max_history = max_history
