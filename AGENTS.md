@@ -24,3 +24,7 @@
 
 # Python
 1. All python related execution should be done using venv. The venv location is `env`, it should be put into gitignore.
+
+# Configuration
+1. The example configuraiton is config.yaml.example. It should be kept up to date whenever there is a configuration change.
+2. If config.yaml exists, it should also be updated with the latest default value, if one doesn't exist.

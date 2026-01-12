@@ -72,7 +72,7 @@ The system follows a modular architecture with clear separation of concerns:
 3. **Mention Detection**: Check if bot is @mentioned (sets is_mentioned flag)
 4. **Storage**: ALL valid messages stored in SQLite with raw JSON
 5. **Response Decision**: Only respond if bot was mentioned (when enabled)
-6. **Context Retrieval**: Recent conversation history retrieved (all messages)
+6. **Context Creation**: Empty context created (no automatic history - agent must request via tool)
 7. **Agent Processing**: Agent processes message with LLM and tools (if responding)
 8. **Tool Execution**: Tools execute with conversation context when needed
 9. **Response**: Agent response sent to Telegram and stored
@@ -150,6 +150,7 @@ System prompts support template variables that are replaced at runtime:
 - **Key Components**:
   - `base.py`: Base tool interface
   - `chat_reply.py`: Telegram message sending tool
+  - `context_manager.py`: Conversation history retrieval tool
   - `notion_reader.py`: Notion page reading tool
   - `notion_writer.py`: Notion page writing tool
   - `calendar_reader.py`: Google Calendar reading tool
@@ -172,6 +173,7 @@ The system supports injecting runtime variables into agent system prompts:
 - `{current_datetime}`: Current date and time in configured timezone (format: YYYY-MM-DD HH:MM:SS)
 - `{timezone}`: Configured timezone (IANA timezone name)
 - `{language}`: Preferred response language (ISO 639-1 code)
+- `{max_history}`: Maximum number of previous messages agent can request via get_conversation_history tool
 
 **Configuration:**
 ```yaml
@@ -180,6 +182,8 @@ agent:
     timezone: "America/New_York"  # IANA timezone name
     language: "en"                 # ISO 639-1 language code
   inject_datetime: true            # Enable/disable datetime injection
+  context:
+    max_history: 5                 # Maximum previous messages agent can request (1-50)
 ```
 
 **Template Replacement Flow:**
@@ -343,13 +347,14 @@ agent:
 3. Message extractor checks if bot is @mentioned
 4. Message stored in conversation database (with raw JSON)
 5. If not mentioned (and require_mention enabled), exit without responding
-6. Context manager retrieves recent messages (all messages, mentioned or not)
-7. Agent processor processes message with context
-8. Agent may call tools (with context)
-9. Tools execute and return results
-10. Agent generates response
-11. Response sent to Telegram
-12. Response stored in database
+6. Empty context created (chat_id, user_id only - NO automatic message history)
+7. Agent processor processes message with context metadata
+8. Agent may use get_conversation_history tool to retrieve previous messages (up to max_history)
+9. Agent may call other tools (with context)
+10. Tools execute and return results
+11. Agent generates response
+12. Response sent to Telegram
+13. Response stored in database
 
 ### Tool Execution Flow
 

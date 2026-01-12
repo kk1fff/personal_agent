@@ -124,10 +124,13 @@ async def process_message(
         # Only process and respond if mentioned
         logger.info("Bot mentioned, processing with agent...")
 
-        # Get conversation context
-        context = await context_manager.get_context(
+        # Create context with ONLY the current message metadata (no history)
+        # Agent must explicitly request history via get_conversation_history tool
+        from .context.models import ConversationContext
+        context = ConversationContext(
             chat_id=extracted.chat_id,
             user_id=extracted.user_id,
+            messages=[],  # Empty - agent must request history via tool
         )
 
         # Process through agent
@@ -268,7 +271,7 @@ async def main():
         await telegram_client.send_message(chat_id, text)
 
     tool_registry = ToolRegistry()
-    tool_registry.initialize_tools(config, send_message_callback)
+    tool_registry.initialize_tools(config, send_message_callback, context_manager)
 
     # Log registered tools
     registered_tools = tool_registry.get_all_tools()
@@ -319,6 +322,7 @@ async def main():
         timezone=agent_config.preferences.timezone,
         language=agent_config.preferences.language,
         inject_datetime=agent_config.inject_datetime,
+        max_history=agent_config.context.max_history,
     )
     agent = AgentProcessor(
         llm=llm,
