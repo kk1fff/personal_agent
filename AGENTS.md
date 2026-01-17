@@ -28,3 +28,7 @@
 # Configuration
 1. The example configuraiton is config.yaml.example. It should be kept up to date whenever there is a configuration change.
 2. If config.yaml exists, it should also be updated with the latest default value, if one doesn't exist.
+
+# Project Analysis report
+1. The user will ask for project structure analysis for the project. It should be recorded in `documentations/PROJECT_ANALYSIS_<YYYYMMDD>.md`
+2. Review this whole project and generate a detailed document about this project. It should include a summary, an overview, a list of features, detail of each feature, class organization, data flows. Draw diagram if needed.
