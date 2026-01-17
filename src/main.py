@@ -111,6 +111,7 @@ async def process_message(
             role="user",
             message_id=extracted.message_id,
             raw_json=extracted.raw_json,
+            reply_to_message_id=extracted.reply_to_message_id,
         )
 
         # Check if bot was mentioned before responding
@@ -124,6 +125,23 @@ async def process_message(
         # Only process and respond if mentioned
         logger.info("Bot mentioned, processing with agent...")
 
+        # Build message with reply context if applicable (Story 2: Reply Tagging)
+        user_message = extracted.message_text
+        if extracted.reply_to_message_id:
+            replied_msg = await context_manager.get_message_by_id(
+                extracted.chat_id,
+                extracted.reply_to_message_id,
+            )
+            if replied_msg:
+                user_message = (
+                    f"{extracted.message_text}\n\n"
+                    f"[Context: User is replying to a previous message: "
+                    f"'{replied_msg.message_text}']"
+                )
+                logger.debug(
+                    f"Added reply context from message {extracted.reply_to_message_id}"
+                )
+
         # Create context with ONLY the current message metadata (no history)
         # Agent must explicitly request history via get_conversation_history tool
         from .context.models import ConversationContext
@@ -134,7 +152,7 @@ async def process_message(
         )
 
         # Process through agent
-        response = await agent.process_command(extracted.message_text, context)
+        response = await agent.process_command(user_message, context)
 
         # Send response back
         if response.text:
@@ -185,10 +203,18 @@ async def main():
     await conversation_db.initialize()
     logger.info("✓ Conversation database ready")
 
-    # Initialize context manager
+    # Initialize context manager with config settings
     logger.info("[3/7] Initializing context manager")
-    context_manager = ConversationContextManager(conversation_db)
+    context_config = config.agent.context
+    context_manager = ConversationContextManager(
+        conversation_db,
+        default_limit=context_config.max_history,
+        time_gap_threshold_minutes=context_config.time_gap_threshold_minutes,
+        lookback_limit=context_config.lookback_limit,
+    )
     logger.info("✓ Context manager ready")
+    logger.info(f"  Time gap threshold: {context_config.time_gap_threshold_minutes} min")
+    logger.info(f"  Lookback limit: {context_config.lookback_limit} messages")
 
     # Initialize vector store (optional, for memory)
     vector_store = None

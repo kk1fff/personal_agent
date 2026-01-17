@@ -142,6 +142,18 @@ class ContextConfig(BaseModel):
         le=50,
         description="Maximum number of previous messages agent can request"
     )
+    time_gap_threshold_minutes: int = Field(
+        default=60,
+        ge=15,
+        le=180,
+        description="Time gap (minutes) that defines session boundary for smart context"
+    )
+    lookback_limit: int = Field(
+        default=25,
+        ge=10,
+        le=100,
+        description="Maximum messages to inspect when clustering"
+    )
 
 
 class AgentConfig(BaseModel):

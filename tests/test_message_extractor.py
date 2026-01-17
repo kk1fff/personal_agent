@@ -138,3 +138,42 @@ def test_extract_with_restrictions(config_with_restrictions):
     }
     assert extractor.extract(update_disallowed_user) is None
 
+
+def test_extract_reply_message(basic_config):
+    """Test extracting a reply message with reply_to_message_id."""
+    extractor = MessageExtractor(basic_config)
+    update = {
+        "message": {
+            "chat": {"id": 123},
+            "from": {"id": 456, "username": "testuser"},
+            "text": "This is a reply",
+            "message_id": 789,
+            "reply_to_message": {
+                "message_id": 788,
+                "text": "Original message",
+                "from": {"id": 111},
+            }
+        }
+    }
+
+    extracted = extractor.extract(update)
+    assert extracted is not None
+    assert extracted.reply_to_message_id == 788
+    assert extracted.message_text == "This is a reply"
+
+
+def test_extract_non_reply_message(basic_config):
+    """Test extracting a non-reply message has None reply_to_message_id."""
+    extractor = MessageExtractor(basic_config)
+    update = {
+        "message": {
+            "chat": {"id": 123},
+            "from": {"id": 456},
+            "text": "Regular message",
+            "message_id": 789,
+        }
+    }
+
+    extracted = extractor.extract(update)
+    assert extracted is not None
+    assert extracted.reply_to_message_id is None

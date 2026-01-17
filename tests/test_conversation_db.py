@@ -83,3 +83,62 @@ async def test_get_all_messages(temp_db):
     assert len(messages) == 2
     assert all(msg.chat_id == 123 for msg in messages)
 
+
+@pytest.mark.asyncio
+async def test_save_message_with_reply_to(temp_db):
+    """Test saving a message with reply_to_message_id."""
+    await temp_db.initialize()
+
+    await temp_db.save_message(
+        chat_id=123,
+        user_id=456,
+        message_text="Reply message",
+        role="user",
+        message_id=789,
+        reply_to_message_id=788,
+    )
+
+    messages = await temp_db.get_recent_messages(chat_id=123, limit=10)
+    assert len(messages) == 1
+    assert messages[0].reply_to_message_id == 788
+
+
+@pytest.mark.asyncio
+async def test_get_message_by_id(temp_db):
+    """Test fetching specific message by ID."""
+    await temp_db.initialize()
+
+    await temp_db.save_message(
+        chat_id=123,
+        user_id=456,
+        message_text="Target message",
+        role="user",
+        message_id=999,
+    )
+
+    msg = await temp_db.get_message_by_id(123, 999)
+    assert msg is not None
+    assert msg.message_text == "Target message"
+
+    # Non-existent message
+    msg = await temp_db.get_message_by_id(123, 888)
+    assert msg is None
+
+
+@pytest.mark.asyncio
+async def test_get_messages_for_clustering(temp_db):
+    """Test retrieval for clustering (DESC order)."""
+    await temp_db.initialize()
+
+    for i in range(5):
+        await temp_db.save_message(
+            chat_id=123,
+            user_id=456,
+            message_text=f"Message {i}",
+            role="user",
+        )
+
+    messages = await temp_db.get_messages_for_clustering(123, limit=10)
+    assert len(messages) == 5
+    # Should be newest first
+    assert messages[0].message_text == "Message 4"

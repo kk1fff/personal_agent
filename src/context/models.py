@@ -16,6 +16,7 @@ class Message:
     timestamp: datetime
     message_id: Optional[int] = None
     raw_json: Optional[str] = None
+    reply_to_message_id: Optional[int] = None
 
 
 @dataclass

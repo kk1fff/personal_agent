@@ -166,7 +166,7 @@ async def test_context_manager_empty_history(
     assert result.success is True
     assert result.data["count"] == 0
     assert len(result.data["messages"]) == 0
-    assert "Retrieved 0 previous message(s)" in result.message
+    assert "Retrieved 0 recent message(s)" in result.message
 
 
 @pytest.mark.asyncio
@@ -204,7 +204,9 @@ def test_context_manager_tool_description():
     tool = ContextManagerTool(mock_manager, max_history=5)
     description = tool.get_description()
     assert "retrieve previous messages" in description.lower()
-    assert "5 previous messages" in description
+    assert "up to 5" in description
+    assert "smart" in description.lower()
+    assert "recent" in description.lower()
 
 
 def test_context_manager_tool_schema():
@@ -215,7 +217,13 @@ def test_context_manager_tool_schema():
 
     assert schema["name"] == "get_conversation_history"
     assert "parameters" in schema
+    # Check count parameter
     assert "count" in schema["parameters"]["properties"]
     assert schema["parameters"]["properties"]["count"]["type"] == "integer"
     assert schema["parameters"]["properties"]["count"]["minimum"] == 1
     assert schema["parameters"]["properties"]["count"]["maximum"] == 5
+    # Check mode parameter (new)
+    assert "mode" in schema["parameters"]["properties"]
+    assert schema["parameters"]["properties"]["mode"]["type"] == "string"
+    assert "recent" in schema["parameters"]["properties"]["mode"]["enum"]
+    assert "smart" in schema["parameters"]["properties"]["mode"]["enum"]
