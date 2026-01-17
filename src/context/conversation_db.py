@@ -57,6 +57,7 @@ class ConversationDB:
         db_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         async with aiosqlite.connect(self.db_path) as db:
+            # Create table with full schema (for new databases)
             await db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS messages (
@@ -72,6 +73,7 @@ class ConversationDB:
                 )
                 """
             )
+            # Create indexes that don't depend on new columns
             await db.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_chat_id_timestamp
@@ -90,6 +92,13 @@ class ConversationDB:
                 ON messages(chat_id)
                 """
             )
+            await db.commit()
+
+        # Run migrations for existing databases (adds reply_to_message_id column if missing)
+        await self._run_migrations()
+
+        # Create index on reply_to_message_id AFTER migration ensures column exists
+        async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_reply_to_message_id
@@ -97,9 +106,6 @@ class ConversationDB:
                 """
             )
             await db.commit()
-
-        # Run migrations for existing databases
-        await self._run_migrations()
 
         self._initialized = True
 
