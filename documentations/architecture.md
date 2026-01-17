@@ -202,7 +202,7 @@ agent:
 - **Purpose**: Manage conversation history and context
 - **Key Components**:
   - `conversation_db.py`: SQLite database operations
-  - `context_manager.py`: Context retrieval and management
+  - `context_manager.py`: Context retrieval and management with smart clustering
   - `models.py`: Data models for conversations
 - **Dependencies**: `aiosqlite`
 
@@ -217,11 +217,41 @@ agent:
 - `timestamp`: ISO format UTC timestamp
 - `message_id`: Telegram message ID (indexed)
 - `raw_json`: Full Telegram update JSON for debugging
+- `reply_to_message_id`: Telegram message ID being replied to (indexed)
 
 **Indexes:**
 - `idx_chat_id_timestamp`: Fast recent message retrieval
 - `idx_message_id`: Fast message ID lookups
 - `idx_chat_id`: Fast chat filtering
+- `idx_reply_to_message_id`: Fast reply chain lookups
+
+#### Contextual Conversation Chime-in
+
+The system supports intelligent context retrieval for natural conversation engagement:
+
+**Reply Context Injection (Story 2):**
+- When a user replies to a specific message while mentioning the bot, the system automatically fetches the replied-to message
+- Context is appended to the user's message for the LLM: `[Context: User is replying to a previous message: 'original text']`
+- Uses `reply_to_message_id` extracted from Telegram updates
+
+**Time-Gap Clustering (Story 1):**
+- Agent can use "smart" mode to retrieve messages from the current "session"
+- A session is defined by time gaps between consecutive messages
+- If the gap exceeds `time_gap_threshold_minutes` (default: 60), older messages are excluded
+- This filters out irrelevant old messages when user says "@bot what do you think?"
+
+**Configuration:**
+```yaml
+agent:
+  context:
+    max_history: 5                       # Maximum messages for "recent" mode
+    time_gap_threshold_minutes: 60       # Gap threshold for session detection
+    lookback_limit: 25                   # Max messages to inspect for clustering
+```
+
+**Retrieval Modes:**
+- `recent`: Returns last N messages chronologically (existing behavior)
+- `smart`: Uses time-gap clustering to return current session messages only
 
 ### 7. Memory System (`src/memory/`)
 - **Purpose**: Long-term memory storage using vector database
@@ -345,16 +375,18 @@ agent:
 1. Telegram message received
 2. Message extractor validates chat/user IDs
 3. Message extractor checks if bot is @mentioned
-4. Message stored in conversation database (with raw JSON)
-5. If not mentioned (and require_mention enabled), exit without responding
-6. Empty context created (chat_id, user_id only - NO automatic message history)
-7. Agent processor processes message with context metadata
-8. Agent may use get_conversation_history tool to retrieve previous messages (up to max_history)
-9. Agent may call other tools (with context)
-10. Tools execute and return results
-11. Agent generates response
-12. Response sent to Telegram
-13. Response stored in database
+4. Message extractor extracts `reply_to_message_id` if present
+5. Message stored in conversation database (with raw JSON and reply_to_message_id)
+6. If not mentioned (and require_mention enabled), exit without responding
+7. If message is a reply, fetch the replied-to message and inject context
+8. Empty context created (chat_id, user_id only - NO automatic message history)
+9. Agent processor processes enriched message with context metadata
+10. Agent may use get_conversation_history tool with "recent" or "smart" mode
+11. Agent may call other tools (with context)
+12. Tools execute and return results
+13. Agent generates response
+14. Response sent to Telegram
+15. Response stored in database
 
 ### Tool Execution Flow
 

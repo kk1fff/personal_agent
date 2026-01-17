@@ -77,6 +77,19 @@ class PydanticAIModelAdapter(Model):
         # Combine prompt parts
         user_prompt = "\n".join(prompt_parts) if prompt_parts else ""
 
+        # Log all content being sent to the LLM
+        logger.debug("=" * 60)
+        logger.debug("LLM REQUEST - Full content being sent to agent")
+        logger.debug("=" * 60)
+        logger.debug(f"Model: {self.model_name}")
+        logger.debug("-" * 40)
+        logger.debug("SYSTEM PROMPT:")
+        logger.debug(system_prompt)
+        logger.debug("-" * 40)
+        logger.debug("USER PROMPT:")
+        logger.debug(user_prompt)
+        logger.debug("=" * 60)
+
         # Call the LLM
         response_text = await self.llm.generate(
             user_prompt,
@@ -202,6 +215,17 @@ class AgentProcessor:
         Returns:
             AgentResponse with result
         """
+        # Log incoming command
+        logger.debug("=" * 60)
+        logger.debug("AGENT COMMAND - Processing user message")
+        logger.debug("=" * 60)
+        logger.debug(f"Chat ID: {context.chat_id}")
+        logger.debug(f"User ID: {context.user_id}")
+        logger.debug("-" * 40)
+        logger.debug("USER MESSAGE:")
+        logger.debug(message)
+        logger.debug("=" * 60)
+
         try:
             # Run agent with ConversationContext injected as dependency
             result = await self.agent.run(
@@ -215,6 +239,13 @@ class AgentProcessor:
                 response_text = result.data
             except AttributeError:
                 response_text = result.output  # Fallback for compatibility
+
+            # Log agent response
+            logger.debug("=" * 60)
+            logger.debug("AGENT RESPONSE")
+            logger.debug("=" * 60)
+            logger.debug(response_text)
+            logger.debug("=" * 60)
 
             # Determine if this is a follow-up question
             follow_up = any(

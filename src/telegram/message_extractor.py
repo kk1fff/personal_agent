@@ -22,6 +22,7 @@ class ExtractedMessage:
     is_command: bool = False
     is_mentioned: bool = False
     raw_json: Optional[str] = None
+    reply_to_message_id: Optional[int] = None
 
 
 class MessageExtractor:
@@ -134,6 +135,12 @@ class MessageExtractor:
         # Check if bot is mentioned (but DON'T filter)
         is_mentioned = self.is_bot_mentioned(message)
 
+        # Extract reply_to_message_id if this is a reply
+        reply_to_message = message.get("reply_to_message")
+        reply_to_message_id = None
+        if reply_to_message:
+            reply_to_message_id = reply_to_message.get("message_id")
+
         # Store raw JSON
         raw_json = json.dumps(update)
 
@@ -146,6 +153,7 @@ class MessageExtractor:
             is_command=is_command,
             is_mentioned=is_mentioned,
             raw_json=raw_json,
+            reply_to_message_id=reply_to_message_id,
         )
 
     def is_allowed_conversation(self, chat_id: int) -> bool:

@@ -81,3 +81,15 @@ agent:
   # Set to false if you want static prompts without time awareness
   inject_datetime: true
 
+  # Context retrieval configuration
+  context:
+    # Maximum number of previous messages agent can request via tool
+    max_history: 5
+
+    # Time gap threshold for session detection (minutes)
+    # Messages separated by more than this are considered different sessions
+    # Used when agent requests "smart" context mode
+    time_gap_threshold_minutes: 60
+
+    # Maximum messages to inspect when performing time-gap clustering
+    lookback_limit: 25
