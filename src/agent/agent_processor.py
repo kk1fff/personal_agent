@@ -4,7 +4,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.messages import ModelRequest, TextPart
+from pydantic_ai.messages import ModelRequest, TextPart, ToolCallPart
 from pydantic_ai.models import Model, ModelMessage, ModelResponse, ModelSettings, ModelRequestParameters
 from pydantic_ai.usage import RequestUsage
 
@@ -56,7 +56,7 @@ class PydanticAIModelAdapter(Model):
             model_request_parameters: Optional request parameters
 
         Returns:
-            ModelResponse with the generated text
+            ModelResponse with the generated text and/or tool calls
         """
         # Convert messages to a prompt string
         prompt_parts = []
@@ -77,6 +77,18 @@ class PydanticAIModelAdapter(Model):
         # Combine prompt parts
         user_prompt = "\n".join(prompt_parts) if prompt_parts else ""
 
+        # Extract tools from model_request_parameters
+        tools = None
+        if model_request_parameters and model_request_parameters.function_tools:
+            tools = [
+                {
+                    "name": tool.name,
+                    "description": tool.description or "",
+                    "parameters": tool.parameters_json_schema,
+                }
+                for tool in model_request_parameters.function_tools
+            ]
+
         # Log all content being sent to the LLM
         logger.debug("=" * 60)
         logger.debug("LLM REQUEST - Full content being sent to agent")
@@ -88,16 +100,39 @@ class PydanticAIModelAdapter(Model):
         logger.debug("-" * 40)
         logger.debug("USER PROMPT:")
         logger.debug(user_prompt)
+        logger.debug("-" * 40)
+        logger.debug("TOOLS:")
+        logger.debug(tools)
         logger.debug("=" * 60)
 
-        # Call the LLM
-        response_text = await self.llm.generate(
+        # Call the LLM with tools
+        response = await self.llm.generate(
             user_prompt,
             system_prompt=system_prompt,
+            tools=tools,
         )
 
-        # Create response parts (TextPart uses 'content' not 'text')
-        response_parts = [TextPart(content=response_text)]
+        # Build response parts
+        response_parts = []
+
+        # Add tool call parts if present
+        if response.tool_calls:
+            for tc in response.tool_calls:
+                response_parts.append(
+                    ToolCallPart(
+                        tool_name=tc.name,
+                        args=tc.arguments,
+                        tool_call_id=tc.id,
+                    )
+                )
+
+        # Add text part if present
+        if response.text:
+            response_parts.append(TextPart(content=response.text))
+
+        # Ensure at least one part exists
+        if not response_parts:
+            response_parts.append(TextPart(content=""))
 
         # Create usage (simplified - we don't have token counts from our LLM)
         usage = RequestUsage(

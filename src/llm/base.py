@@ -1,7 +1,25 @@
 """Base LLM interface."""
 
 from abc import ABC, abstractmethod
-from typing import Iterator, Optional
+from dataclasses import dataclass, field
+from typing import Any, Dict, Iterator, List, Optional
+
+
+@dataclass
+class ToolCall:
+    """Represents a tool call from the LLM."""
+
+    id: str
+    name: str
+    arguments: Dict[str, Any]
+
+
+@dataclass
+class LLMResponse:
+    """Response from LLM that may contain text and/or tool calls."""
+
+    text: Optional[str] = None
+    tool_calls: List[ToolCall] = field(default_factory=list)
 
 
 class BaseLLM(ABC):
@@ -9,18 +27,23 @@ class BaseLLM(ABC):
 
     @abstractmethod
     async def generate(
-        self, prompt: str, system_prompt: Optional[str] = None, **kwargs
-    ) -> str:
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        **kwargs,
+    ) -> LLMResponse:
         """
         Generate a response from the LLM.
 
         Args:
             prompt: User prompt
             system_prompt: Optional system prompt
+            tools: Optional list of tool definitions for function calling
             **kwargs: Additional provider-specific parameters
 
         Returns:
-            Generated text response
+            LLMResponse with text and/or tool calls
         """
         pass
 

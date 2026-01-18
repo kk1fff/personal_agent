@@ -1,11 +1,12 @@
 """Ollama LLM implementation."""
 
 import logging
-from typing import Iterator, Optional
+import uuid
+from typing import Any, Dict, Iterator, List, Optional
 
 import ollama
 
-from .base import BaseLLM
+from .base import BaseLLM, LLMResponse, ToolCall
 
 logger = logging.getLogger(__name__)
 
@@ -41,18 +42,23 @@ class OllamaLLM(BaseLLM):
         ollama.Client(host=base_url)
 
     async def generate(
-        self, prompt: str, system_prompt: Optional[str] = None, **kwargs
-    ) -> str:
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        **kwargs,
+    ) -> LLMResponse:
         """
         Generate a response from Ollama.
 
         Args:
             prompt: User prompt
             system_prompt: Optional system prompt
+            tools: Optional list of tool definitions for function calling
             **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
         Returns:
-            Generated text response
+            LLMResponse with text and/or tool calls
         """
         temperature = kwargs.get("temperature", self.temperature)
         max_tokens = kwargs.get("max_tokens", self.max_tokens)
@@ -63,20 +69,56 @@ class OllamaLLM(BaseLLM):
         messages.append({"role": "user", "content": prompt})
 
         try:
-            response = ollama.chat(
-                model=self.model,
-                messages=messages,
-                options={
+            # Build API call parameters
+            api_params = {
+                "model": self.model,
+                "messages": messages,
+                "options": {
                     "temperature": temperature,
                     "num_predict": max_tokens,
                 },
+            }
+
+            # Add tools if provided (Ollama supports function calling)
+            if tools:
+                api_params["tools"] = [
+                    {
+                        "type": "function",
+                        "function": {
+                            "name": tool["name"],
+                            "description": tool.get("description", ""),
+                            "parameters": tool.get("parameters", {}),
+                        },
+                    }
+                    for tool in tools
+                ]
+
+            response = ollama.chat(**api_params)
+
+            # Extract tool calls if present
+            tool_calls = []
+            message = response.get("message", {})
+
+            if "tool_calls" in message and message["tool_calls"]:
+                for tc in message["tool_calls"]:
+                    func = tc.get("function", {})
+                    tool_calls.append(
+                        ToolCall(
+                            id=tc.get("id", str(uuid.uuid4())),
+                            name=func.get("name", ""),
+                            arguments=func.get("arguments", {}),
+                        )
+                    )
+
+            return LLMResponse(
+                text=message.get("content"),
+                tool_calls=tool_calls,
             )
-            return response["message"]["content"]
         except Exception as e:
             logger.error(
                 f"Ollama LLM generation failed - Model: {self.model}, "
                 f"Base URL: {self.base_url}, Error: {e}",
-                exc_info=True
+                exc_info=True,
             )
             raise
 
