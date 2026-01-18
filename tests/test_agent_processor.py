@@ -7,14 +7,14 @@ from datetime import datetime
 from src.agent.agent_processor import AgentProcessor, AgentResponse
 from src.context.models import ConversationContext, Message
 from src.tools.base import BaseTool, ToolResult
-from src.llm.base import BaseLLM
+from src.llm.base import BaseLLM, LLMResponse, ToolCall
 
 
 @pytest.fixture
 def mock_llm():
     """Create a mock LLM instance."""
     llm = MagicMock(spec=BaseLLM)
-    llm.generate = AsyncMock(return_value="Test response")
+    llm.generate = AsyncMock(return_value=LLMResponse(text="Test response"))
     llm.get_model_name = MagicMock(return_value="test-model")
     return llm
 

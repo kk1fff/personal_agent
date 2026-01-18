@@ -1,10 +1,12 @@
 """OpenAI LLM implementation."""
 
-from typing import Iterator, Optional
+import json
+import uuid
+from typing import Any, Dict, Iterator, List, Optional
 
 from openai import AsyncOpenAI
 
-from .base import BaseLLM
+from .base import BaseLLM, LLMResponse, ToolCall
 
 
 class OpenAILLM(BaseLLM):
@@ -40,18 +42,23 @@ class OpenAILLM(BaseLLM):
         )
 
     async def generate(
-        self, prompt: str, system_prompt: Optional[str] = None, **kwargs
-    ) -> str:
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        tools: Optional[List[Dict[str, Any]]] = None,
+        **kwargs,
+    ) -> LLMResponse:
         """
         Generate a response from OpenAI.
 
         Args:
             prompt: User prompt
             system_prompt: Optional system prompt
+            tools: Optional list of tool definitions for function calling
             **kwargs: Additional parameters (temperature, max_tokens, etc.)
 
         Returns:
-            Generated text response
+            LLMResponse with text and/or tool calls
         """
         temperature = kwargs.get("temperature", self.temperature)
         max_tokens = kwargs.get("max_tokens", self.max_tokens)
@@ -62,14 +69,40 @@ class OpenAILLM(BaseLLM):
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        response = await self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # Build API call parameters
+        api_params = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+        }
 
-        return response.choices[0].message.content or ""
+        # Add tools if provided
+        if tools:
+            api_params["tools"] = [
+                {"type": "function", "function": tool} for tool in tools
+            ]
+
+        response = await self.client.chat.completions.create(**api_params)
+
+        message = response.choices[0].message
+
+        # Extract tool calls if present
+        tool_calls = []
+        if message.tool_calls:
+            for tc in message.tool_calls:
+                tool_calls.append(
+                    ToolCall(
+                        id=tc.id,
+                        name=tc.function.name,
+                        arguments=json.loads(tc.function.arguments),
+                    )
+                )
+
+        return LLMResponse(
+            text=message.content,
+            tool_calls=tool_calls,
+        )
 
     async def stream_generate(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
