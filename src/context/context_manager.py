@@ -228,15 +228,27 @@ class ConversationContextManager:
         history_text = "\n".join(formatted_messages)
 
         # 3. Construct Prompt
-        prompt = (
-            f"Here are the previous messages from the conversation:\n\n"
-            f"{history_text}\n\n"
-            f"The user's latest input is: '{query}'\n\n"
-            f"Task: picked the relevant message and a generate a context from the following previous messages. "
-            f"The users latest input is provided, you should pick the messages that are related to the users current input, "
-            f"and summarize them into the context.\n"
-            f"Output just the summarize, the context nothing more."
-        )
+        prompt = (f"""
+You are an impartial conversation analyzer and summarizer. You are NOT a participant in the conversation provided below.
+
+Your task is to analyze the provided "Conversation History" in relation to the "User's Latest Input".
+
+Instructions:
+1. Scan the "Conversation History" to find information relevant to the "User's Latest Input".
+2. If relevant history is found, generate a concise summary of ONLY those relevant parts. 
+3. If the "User's Latest Input" is completely unrelated to the "Conversation History", output exactly: "No previous relevant conversation found."
+
+Constraints:
+- Do not assume the persona of the agent or the user.
+- Do not add introductory phrases like "Here is the summary" or "The user previously discussed."
+- Output ONLY the summary text or the specific fallback phrase.
+
+Conversation History:
+{history_text}
+
+User's Latest Input:
+{query}
+""")
 
         # 4. Call LLM
         response = await self.llm.generate(prompt)

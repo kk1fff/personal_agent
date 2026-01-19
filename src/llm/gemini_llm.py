@@ -1,11 +1,16 @@
 """Gemini LLM implementation."""
 
+import json
+import logging
+import re
 import uuid
 from typing import Any, Dict, Iterator, List, Optional
 
 import google.genai as genai
 
 from .base import BaseLLM, LLMResponse, ToolCall
+
+logger = logging.getLogger(__name__)
 
 
 class GeminiLLM(BaseLLM):
@@ -119,10 +124,103 @@ class GeminiLLM(BaseLLM):
         if text is None and not tool_calls:
             text = response.text
 
+        # Fallback: Parse tool calls from text if no structured tool calls found
+        # This handles cases where the model outputs JSON tool calls as text
+        if not tool_calls and text:
+            parsed_tool_call = self._parse_tool_call_from_text(text)
+            if parsed_tool_call:
+                tool_calls.append(parsed_tool_call)
+                text = None  # Clear text since it was a tool call
+
         return LLMResponse(
             text=text,
             tool_calls=tool_calls,
         )
+
+    def _parse_tool_call_from_text(self, text: str) -> Optional[ToolCall]:
+        """
+        Attempt to parse a tool call from text response.
+
+        This handles cases where the model outputs a JSON tool call as text
+        instead of using the proper function calling mechanism.
+
+        Args:
+            text: Text response from the model
+
+        Returns:
+            ToolCall if successfully parsed, None otherwise
+        """
+        text = text.strip()
+
+        # Try to parse as JSON tool call format
+        # Expected format: {"name": "tool_name", "parameters": {...}}
+        try:
+            # Handle text that might have extra content before/after JSON
+            json_match = re.search(r'\{[^{}]*"name"[^{}]*"parameters"[^{}]*\{.*\}\s*\}', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(0)
+
+            data = json.loads(text)
+
+            # Check for expected structure
+            if isinstance(data, dict) and "name" in data:
+                name = data["name"]
+                parameters = data.get("parameters", data.get("arguments", {}))
+
+                # Handle case where parameters is a string (nested JSON)
+                if isinstance(parameters, str):
+                    try:
+                        parameters = json.loads(parameters)
+                    except json.JSONDecodeError:
+                        # If it's a string but not JSON, use it as-is
+                        pass
+
+                # Handle nested JSON strings within individual parameter values
+                if isinstance(parameters, dict):
+                    parameters = self._parse_nested_json_values(parameters)
+
+                logger.debug(f"Parsed tool call from text: {name} with args {parameters}")
+
+                return ToolCall(
+                    id=str(uuid.uuid4()),
+                    name=name,
+                    arguments=parameters if isinstance(parameters, dict) else {"query": parameters},
+                )
+        except json.JSONDecodeError:
+            pass
+        except Exception as e:
+            logger.debug(f"Failed to parse tool call from text: {e}")
+
+        return None
+
+    def _parse_nested_json_values(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Recursively parse JSON strings within parameter values.
+
+        Args:
+            params: Dictionary of parameters
+
+        Returns:
+            Dictionary with JSON strings parsed into objects
+        """
+        result = {}
+        for key, value in params.items():
+            if isinstance(value, str):
+                # Try to parse string values as JSON
+                try:
+                    parsed = json.loads(value)
+                    # Recursively parse if it's a dict
+                    if isinstance(parsed, dict):
+                        result[key] = self._parse_nested_json_values(parsed)
+                    else:
+                        result[key] = parsed
+                except json.JSONDecodeError:
+                    result[key] = value
+            elif isinstance(value, dict):
+                result[key] = self._parse_nested_json_values(value)
+            else:
+                result[key] = value
+        return result
 
     async def stream_generate(
         self, prompt: str, system_prompt: Optional[str] = None, **kwargs
