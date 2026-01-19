@@ -4,8 +4,25 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from src.tools.registry import ToolRegistry
-from src.tools.chat_reply import ChatReplyTool
+from src.tools.base import BaseTool
 from src.config.config_schema import AppConfig, TelegramConfig, LLMConfig, OllamaConfig, ToolsConfig
+
+
+class MockTool(BaseTool):
+    """Mock tool for testing."""
+
+    def __init__(self, name: str = "mock_tool"):
+        super().__init__(name=name, description="A mock tool for testing")
+
+    async def execute(self, context, **kwargs):
+        return {"success": True}
+
+    def get_schema(self):
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": {"type": "object", "properties": {}},
+        }
 
 
 @pytest.fixture
@@ -24,11 +41,11 @@ def basic_config():
 def test_register_tool():
     """Test registering a tool."""
     registry = ToolRegistry()
-    tool = ChatReplyTool(AsyncMock())
+    tool = MockTool("test_tool")
 
     registry.register_tool(tool)
 
-    assert registry.get_tool("chat_reply") == tool
+    assert registry.get_tool("test_tool") == tool
     assert len(registry.get_all_tools()) == 1
 
 
@@ -41,13 +58,10 @@ def test_get_tool_not_found():
 def test_get_all_tools():
     """Test getting all tools."""
     registry = ToolRegistry()
-    tool1 = ChatReplyTool(AsyncMock())
-    tool2 = ChatReplyTool(AsyncMock())
+    tool1 = MockTool("tool_1")
+    tool2 = MockTool("tool_2")
 
     registry.register_tool(tool1)
-    
-    # Mock tool2 name to avoid collision
-    tool2.get_name = MagicMock(return_value="chat_reply_2")
     registry.register_tool(tool2)
 
     tools = registry.get_all_tools()
@@ -59,25 +73,22 @@ def test_get_all_tools():
 def test_initialize_tools(basic_config):
     """Test initializing tools from configuration."""
     registry = ToolRegistry()
-    send_message_callback = AsyncMock()
 
-    registry.initialize_tools(basic_config, send_message_callback)
+    registry.initialize_tools(basic_config)
 
-    # Should always have chat_reply
-    assert registry.get_tool("chat_reply") is not None
+    # With basic config and no context_manager, no tools should be registered
     tools = registry.get_all_tools()
-    assert len(tools) >= 1
+    assert len(tools) == 0
 
 
 def test_initialize_tools_with_context_manager(basic_config):
     """Test initializing tools with context manager."""
     registry = ToolRegistry()
-    send_message_callback = AsyncMock()
     context_manager = MagicMock()
 
-    registry.initialize_tools(basic_config, send_message_callback, context_manager)
+    registry.initialize_tools(basic_config, context_manager)
 
-    # Should have chat_reply and get_conversation_history
-    assert registry.get_tool("chat_reply") is not None
+    # Should have get_conversation_history tool
     assert registry.get_tool("get_conversation_history") is not None
-
+    tools = registry.get_all_tools()
+    assert len(tools) == 1
