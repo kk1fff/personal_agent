@@ -93,7 +93,19 @@ class OllamaLLM(BaseLLM):
                     for tool in tools
                 ]
 
+            # Log request
+            logger.debug(
+                f"Ollama request - Model: {self.model}, "
+                f"Messages: {len(messages)}, Tools: {len(tools) if tools else 0}"
+            )
+            logger.debug(f"Ollama request messages: {messages}")
+            if tools:
+                logger.debug(f"Ollama request tools: {api_params.get('tools')}")
+
             response = ollama.chat(**api_params)
+
+            # Log raw response
+            logger.debug(f"Ollama raw response: {response}")
 
             # Extract tool calls if present
             tool_calls = []
@@ -108,6 +120,19 @@ class OllamaLLM(BaseLLM):
                             name=func.get("name", ""),
                             arguments=func.get("arguments", {}),
                         )
+                    )
+
+            # Log parsed response details
+            logger.debug(
+                f"Ollama response - Content: {message.get('content')}, "
+                f"Tool calls: {len(tool_calls)}, "
+                f"Role: {message.get('role')}"
+            )
+            if tool_calls:
+                for tc in tool_calls:
+                    logger.debug(
+                        f"Ollama tool call - Name: {tc.name}, "
+                        f"ID: {tc.id}, Arguments: {tc.arguments}"
                     )
 
             return LLMResponse(
