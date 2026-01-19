@@ -224,9 +224,9 @@ class AgentProcessor:
 
             # Convert ToolResult to string for PydanticAI
             if result.success:
-                return result.message or str(result.data) or "Success (no output)"
+                return "Result from tool '{}':\n".format(tool_name) + (result.message or str(result.data) or "Success (no output)")
             else:
-                return f"Error: {result.error or 'Unknown error'}"
+                return "Error from tool '{}':\n".format(tool_name) + (result.error or 'Unknown error')
 
         # Set function metadata from schema
         tool_wrapper.__name__ = tool_name
