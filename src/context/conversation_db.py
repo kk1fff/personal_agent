@@ -164,11 +164,13 @@ class ConversationDB:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """
-                SELECT id, chat_id, user_id, message_text, role, timestamp, message_id, raw_json, reply_to_message_id
-                FROM messages
-                WHERE chat_id = ?
-                ORDER BY timestamp ASC
-                LIMIT ?
+                SELECT * FROM (
+                    SELECT id, chat_id, user_id, message_text, role, timestamp, message_id, raw_json, reply_to_message_id
+                    FROM messages
+                    WHERE chat_id = ?
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                ) ORDER BY timestamp ASC
                 """,
                 (chat_id, limit),
             ) as cursor:
