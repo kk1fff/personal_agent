@@ -28,6 +28,9 @@ Remember:
 - You can ask clarifying questions if a request is ambiguous
 - Provide your final response directly - it will be sent to the user automatically
 - Be proactive in suggesting helpful actions when appropriate
+
+IMPORTANT: Your final response to the user must be in plain natural language text only.
+Do NOT format your response as JSON, XML, or any other structured data format.
 """
 
 
