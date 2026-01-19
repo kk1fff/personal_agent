@@ -54,11 +54,6 @@ class ToolRegistry:
             send_message_callback: Callback function for sending messages
             context_manager: Optional ConversationContextManager for context retrieval
         """
-        # Always register chat_reply tool
-        from .chat_reply import ChatReplyTool
-
-        chat_reply = ChatReplyTool(send_message_callback)
-        self.register_tool(chat_reply)
 
         # Register context manager tool if provided
         if context_manager:
