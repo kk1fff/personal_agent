@@ -65,8 +65,9 @@ async def test_get_recent_messages(temp_db):
 
     messages = await temp_db.get_recent_messages(chat_id=123, limit=3)
     assert len(messages) == 3
-    # Should be ordered by timestamp (oldest first)
-    assert messages[0].message_text == "Message 0"
+    # Should return the 3 most recent messages, ordered by timestamp (oldest first)
+    # Messages 0-4 were saved, so the 3 most recent are 2, 3, 4
+    assert messages[0].message_text == "Message 2"
 
 
 @pytest.mark.asyncio
