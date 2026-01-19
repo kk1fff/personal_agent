@@ -122,10 +122,9 @@ By default, agents receive only the current user message WITHOUT automatic conve
 
 **Retrieving History:**
 
-When an agent needs context from previous messages, it uses the `get_conversation_history` tool. There are three modes:
-- `recent`: Get the last N messages (default)
-- `smart`: Get messages from the current active session (based on time gaps)
-- `llm`: Get a summarized context relevant to a specific query (uses LLM to summarize)
+When an agent needs context from previous messages, it uses the `get_conversation_history` tool.
+- The tool uses the `llm` mode to generate a summarized context relevant to a specific query.
+- It requires a `query` parameter to identify what information to look for.
 
 History is retrieved on-demand only when needed.
 

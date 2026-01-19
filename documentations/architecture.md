@@ -251,9 +251,7 @@ agent:
 ```
 
 **Retrieval Modes:**
-- `recent`: Returns last N messages chronologically (existing behavior)
-- `smart`: Uses time-gap clustering to return current session messages only
-- `llm`: Uses LLM to generate a relevant query-based summary from recent messages
+- `llm`: Uses LLM to generate a relevant query-based summary from recent messages. This is the only supported mode for the tool.
 
 ### 7. Memory System (`src/memory/`)
 - **Purpose**: Long-term memory storage using vector database
