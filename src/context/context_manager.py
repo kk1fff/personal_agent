@@ -236,7 +236,7 @@ Your task is to analyze the provided "Conversation History" in relation to the "
 Instructions:
 1. Scan the "Conversation History" to find information relevant to the "User's Latest Input".
 2. If relevant history is found, generate a concise summary of ONLY those relevant parts. 
-3. If the "User's Latest Input" is completely unrelated to the "Conversation History", output exactly: "No previous relevant conversation found."
+3. If the "User's Latest Input" is unrelated any of the content of "Conversation History", output exactly: "No previous relevant conversation found."
 
 Constraints:
 - Do not assume the persona of the agent or the user.

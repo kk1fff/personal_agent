@@ -149,7 +149,6 @@ System prompts support template variables that are replaced at runtime:
 - **Purpose**: Pluggable tool system for extending agent capabilities
 - **Key Components**:
   - `base.py`: Base tool interface
-  - `chat_reply.py`: Telegram message sending tool
   - `context_manager.py`: Conversation history retrieval tool
   - `notion_reader.py`: Notion page reading tool
   - `notion_writer.py`: Notion page writing tool

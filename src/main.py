@@ -296,12 +296,8 @@ async def main():
     # Initialize tool registry
     logger.info("[7/7] Initializing tools")
 
-    async def send_message_callback(chat_id: int, text: str):
-        """Callback for tools to send messages."""
-        await telegram_client.send_message(chat_id, text)
-
     tool_registry = ToolRegistry()
-    tool_registry.initialize_tools(config, send_message_callback, context_manager)
+    tool_registry.initialize_tools(config, context_manager)
 
     # Log registered tools
     registered_tools = tool_registry.get_all_tools()

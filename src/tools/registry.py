@@ -44,22 +44,15 @@ class ToolRegistry:
         return list(self._tools.values())
 
     def initialize_tools(
-        self, config: AppConfig, send_message_callback, context_manager=None
+        self, config: AppConfig, context_manager=None
     ) -> None:
         """
         Initialize and register all tools based on configuration.
 
         Args:
             config: Application configuration
-            send_message_callback: Callback function for sending messages
             context_manager: Optional ConversationContextManager for context retrieval
         """
-        # Always register chat_reply tool
-        from .chat_reply import ChatReplyTool
-
-        chat_reply = ChatReplyTool(send_message_callback)
-        self.register_tool(chat_reply)
-
         # Register context manager tool if provided
         if context_manager:
             from .context_manager import ContextManagerTool
