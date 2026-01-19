@@ -247,11 +247,11 @@ agent:
     max_history: 5                       # Maximum messages for "recent" mode
     time_gap_threshold_minutes: 60       # Gap threshold for session detection
     lookback_limit: 25                   # Max messages to inspect for clustering
+    message_limit: 20                    # Max recent messages for "llm" summarization mode
 ```
 
 **Retrieval Modes:**
-- `recent`: Returns last N messages chronologically (existing behavior)
-- `smart`: Uses time-gap clustering to return current session messages only
+- `llm`: Uses LLM to generate a relevant query-based summary from recent messages. This is the only supported mode for the tool.
 
 ### 7. Memory System (`src/memory/`)
 - **Purpose**: Long-term memory storage using vector database

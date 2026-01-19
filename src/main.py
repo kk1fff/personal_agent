@@ -203,23 +203,11 @@ async def main():
     await conversation_db.initialize()
     logger.info("✓ Conversation database ready")
 
-    # Initialize context manager with config settings
-    logger.info("[3/7] Initializing context manager")
-    context_config = config.agent.context
-    context_manager = ConversationContextManager(
-        conversation_db,
-        default_limit=context_config.max_history,
-        time_gap_threshold_minutes=context_config.time_gap_threshold_minutes,
-        lookback_limit=context_config.lookback_limit,
-    )
-    logger.info("✓ Context manager ready")
-    logger.info(f"  Time gap threshold: {context_config.time_gap_threshold_minutes} min")
-    logger.info(f"  Lookback limit: {context_config.lookback_limit} messages")
 
     # Initialize vector store (optional, for memory)
     vector_store = None
     embedding_generator = None
-    logger.info(f"[4/7] Initializing vector store")
+    logger.info(f"[3/7] Initializing vector store")
     logger.info(f"  Vector DB path: {config.database.vector_db_path}")
     try:
         vector_store = VectorStore(config.database.vector_db_path)
@@ -232,7 +220,7 @@ async def main():
         logger.warning("  Memory features disabled")
 
     # Create LLM
-    logger.info(f"[5/7] Initializing LLM")
+    logger.info(f"[4/7] Initializing LLM")
     logger.info(f"  Provider: {config.llm.provider}")
 
     # Log provider-specific details
@@ -276,6 +264,22 @@ async def main():
             logger.error(f"    - Model '{config.llm.gemini.model}' is accessible")
 
         sys.exit(1)
+
+    # Initialize context manager with config settings
+    logger.info("[5/7] Initializing context manager")
+    context_config = config.agent.context
+    context_manager = ConversationContextManager(
+        conversation_db,
+        default_limit=context_config.max_history,
+        time_gap_threshold_minutes=context_config.time_gap_threshold_minutes,
+        lookback_limit=context_config.lookback_limit,
+        llm=llm,
+        message_limit=context_config.message_limit,
+    )
+    logger.info("✓ Context manager ready")
+    logger.info(f"  Time gap threshold: {context_config.time_gap_threshold_minutes} min")
+    logger.info(f"  Lookback limit: {context_config.lookback_limit} messages")
+    logger.info(f"  Message limit (LLM): {context_config.message_limit} messages")
 
     # Initialize Telegram client
     logger.info(f"[6/7] Initializing Telegram client")

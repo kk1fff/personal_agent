@@ -45,6 +45,9 @@ def test_get_all_tools():
     tool2 = ChatReplyTool(AsyncMock())
 
     registry.register_tool(tool1)
+    
+    # Mock tool2 name to avoid collision
+    tool2.get_name = MagicMock(return_value="chat_reply_2")
     registry.register_tool(tool2)
 
     tools = registry.get_all_tools()
@@ -64,4 +67,17 @@ def test_initialize_tools(basic_config):
     assert registry.get_tool("chat_reply") is not None
     tools = registry.get_all_tools()
     assert len(tools) >= 1
+
+
+def test_initialize_tools_with_context_manager(basic_config):
+    """Test initializing tools with context manager."""
+    registry = ToolRegistry()
+    send_message_callback = AsyncMock()
+    context_manager = MagicMock()
+
+    registry.initialize_tools(basic_config, send_message_callback, context_manager)
+
+    # Should have chat_reply and get_conversation_history
+    assert registry.get_tool("chat_reply") is not None
+    assert registry.get_tool("get_conversation_history") is not None
 

@@ -154,6 +154,12 @@ class ContextConfig(BaseModel):
         le=100,
         description="Maximum messages to inspect when clustering"
     )
+    message_limit: int = Field(
+        default=20,
+        ge=1,
+        le=100,
+        description="Maximum recent references to pull for LLM summarization"
+    )
 
 
 class AgentConfig(BaseModel):

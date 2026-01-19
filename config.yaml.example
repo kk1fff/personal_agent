@@ -83,13 +83,16 @@ agent:
 
   # Context retrieval configuration
   context:
-    # Maximum number of previous messages agent can request via tool
+    # Maximum number of previous messages agent can request via tool (Deprecated for tool usage, used as default backup)
     max_history: 5
 
-    # Time gap threshold for session detection (minutes)
+    # Time gap threshold for session detection (minutes) (Deprecated for tool usage)
     # Messages separated by more than this are considered different sessions
     # Used when agent requests "smart" context mode
     time_gap_threshold_minutes: 60
 
     # Maximum messages to inspect when performing time-gap clustering
     lookback_limit: 25
+
+    # Maximum recent references to pull for LLM summarization
+    message_limit: 20

@@ -22,7 +22,7 @@ When interacting with users:
 2. If you need clarification, ask follow-up questions using the chat_reply tool
 3. You can chain multiple tool calls to complete complex tasks
 4. Always confirm actions that modify data (like creating calendar events or writing to Notion)
-5. Request conversation history using get_conversation_history when context is needed
+5. Request conversation history using get_conversation_history with a specific query when context is needed
 6. Respond in the preferred language ({language}) unless the user explicitly requests another language
 
 Remember:
