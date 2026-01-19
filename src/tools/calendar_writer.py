@@ -35,7 +35,8 @@ class CalendarWriterTool(BaseTool):
         """
         super().__init__(
             name="calendar_writer",
-            description="Create events in Google Calendar. Requires title, start time, and optionally end time and description.",
+            description="Create events in Google Calendar. Requires title, start time, and optionally end time and description. "
+            "use this tool only when the user explicitly ask you to update or write create calendar items",
         )
         self.credentials_path = credentials_path
         self.service_account_email = service_account_email

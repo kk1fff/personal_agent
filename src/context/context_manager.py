@@ -234,11 +234,12 @@ class ConversationContextManager:
             f"The user's latest input is: '{query}'\n\n"
             f"Task: picked the relevant message and a generate a context from the following previous messages. "
             f"The users latest input is provided, you should pick the messages that are related to the users current input, "
-            f"and summarize them into the context."
+            f"and summarize them into the context.\n"
+            f"Output just the summarize, the context nothing more."
         )
 
         # 4. Call LLM
         response = await self.llm.generate(prompt)
 
-        return response.text or "Could not generate context summary.", len(messages)
+        return response.text if response.text else "Could not generate context summary.", len(messages)
 

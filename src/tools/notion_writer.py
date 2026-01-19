@@ -20,7 +20,8 @@ class NotionWriterTool(BaseTool):
         """
         super().__init__(
             name="notion_writer",
-            description="Write content to a Notion page. Can create new pages or update existing ones.",
+            description="Write content to a Notion page. Can create new pages or update existing ones. "
+            "Call this tool only when the user explicitly ask you to write or update notion",
         )
         self.client = Client(auth=api_key)
 
