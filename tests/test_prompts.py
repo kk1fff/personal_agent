@@ -124,3 +124,11 @@ def test_inject_template_variables_all_defaults():
     assert "en" in result
     assert "{timezone}" not in result
     assert "{language}" not in result
+
+
+def test_system_prompt_has_plain_text_instruction():
+    """Test that system prompt instructs plain text response format."""
+    # Verify prompt contains instruction for plain natural language
+    assert "plain" in SYSTEM_PROMPT.lower() or "natural language" in SYSTEM_PROMPT.lower()
+    # Verify prompt explicitly mentions NOT to use JSON
+    assert "JSON" in SYSTEM_PROMPT or "json" in SYSTEM_PROMPT

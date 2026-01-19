@@ -197,6 +197,11 @@ agent:
 - Existing prompts without placeholders continue to work
 - If `agent` section omitted from config, defaults to UTC/en with datetime injection enabled
 
+**Response Format Requirements:**
+- The system prompt explicitly instructs the LLM to respond in plain natural language text
+- JSON, XML, and other structured data formats are prohibited in final responses
+- This prevents LLMs from outputting structured responses when tools are provided, which is common behavior in models fine-tuned for function calling
+
 ### 6. Conversation Context (`src/context/`)
 - **Purpose**: Manage conversation history and context
 - **Key Components**:
