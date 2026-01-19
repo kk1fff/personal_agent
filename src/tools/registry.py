@@ -64,11 +64,8 @@ class ToolRegistry:
         if context_manager:
             from .context_manager import ContextManagerTool
 
-            context_config = config.agent.context
             context_tool = ContextManagerTool(
-                context_manager,
-                max_history=context_config.max_history,
-                time_gap_threshold_minutes=context_config.time_gap_threshold_minutes,
+                context_manager
             )
             self.register_tool(context_tool)
 
