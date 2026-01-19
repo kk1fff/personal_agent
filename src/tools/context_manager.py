@@ -25,8 +25,7 @@ class ContextManagerTool(BaseTool):
                 "Retrieve a summarized context of the conversation history "
                 "relevant to a specific query. Use this tool when you need "
                 "context from previous messages to answer the user's request. "
-                "DO NOT CALL THIS TOOL MORE THEN ONCE, cause it only fetches "
-                "the same context from the same conversation"
+                "DO NOT CALL THIS TOOL MORE THEN ONCE"
             ),
         )
         self.context_manager = context_manager
