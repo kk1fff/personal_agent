@@ -376,8 +376,8 @@ class TestToolExecution:
         # Call wrapper
         result = await wrapper_func(mock_ctx)
 
-        # Should return the message
-        assert result == "Operation successful"
+        # Should return the message with tool name prefix
+        assert result == "Result from tool 'success_tool':\nOperation successful"
 
     @pytest.mark.asyncio
     async def test_tool_wrapper_converts_error_result(self, mock_llm):
@@ -419,8 +419,8 @@ class TestToolExecution:
         # Call wrapper
         result = await wrapper_func(mock_ctx)
 
-        # Should return error message
-        assert result == "Error: Something went wrong"
+        # Should return error message with tool name prefix
+        assert result == "Error from tool 'error_tool':\nSomething went wrong"
 
     @pytest.mark.asyncio
     async def test_tool_wrapper_handles_no_message(self, mock_llm):
