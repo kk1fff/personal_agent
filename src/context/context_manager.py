@@ -16,6 +16,8 @@ class ConversationContextManager:
         default_limit: int = 10,
         time_gap_threshold_minutes: int = 60,
         lookback_limit: int = 25,
+        llm=None,
+        message_limit: int = 20,
     ):
         """
         Initialize context manager.
@@ -25,11 +27,15 @@ class ConversationContextManager:
             default_limit: Default number of recent messages to retrieve
             time_gap_threshold_minutes: Time gap (minutes) that defines session boundary
             lookback_limit: Maximum messages to inspect when clustering
+            llm: LLM instance for summarization
+            message_limit: Maximum messages to fetch for summarization
         """
         self.db = db
         self.default_limit = default_limit
         self.time_gap_threshold = timedelta(minutes=time_gap_threshold_minutes)
         self.lookback_limit = lookback_limit
+        self.llm = llm
+        self.message_limit = message_limit
 
     async def get_context(
         self, chat_id: int, user_id: int, limit: Optional[int] = None
@@ -182,3 +188,57 @@ class ConversationContextManager:
             messages=session_messages,
             recent_limit=len(session_messages),
         ), len(session_messages)
+
+    async def get_llm_context(
+        self,
+        chat_id: int,
+        user_id: int,
+        query: str,
+        limit: Optional[int] = None,
+    ) -> Tuple[str, int]:
+        """
+        Get conversation context summarized by LLM.
+
+        Args:
+            chat_id: Telegram chat ID
+            user_id: Telegram user ID
+            query: The user's current request/query
+            limit: Maximum number of recent messages to fetch for summarization
+
+        Returns:
+            Tuple of (Summary text, count of messages analyzed)
+        """
+        if limit is None:
+            limit = self.message_limit
+
+        if not self.llm:
+            raise ValueError("LLM not initialized in Context Manager")
+
+        # 1. Fetch recent messages
+        messages = await self.db.get_recent_messages(chat_id, limit)
+        if not messages:
+            return "No previous conversation context found.", 0
+
+        # 2. Format messages for the prompt
+        formatted_messages = []
+        for msg in messages:
+            role = "User" if msg.role == "user" else "Assistant"
+            formatted_messages.append(f"{role}: {msg.message_text}")
+        
+        history_text = "\n".join(formatted_messages)
+
+        # 3. Construct Prompt
+        prompt = (
+            f"Here are the previous messages from the conversation:\n\n"
+            f"{history_text}\n\n"
+            f"The user's latest input is: '{query}'\n\n"
+            f"Task: picked the relevant message and a generate a context from the following previous messages. "
+            f"The users latest input is provided, you should pick the messages that are related to the users current input, "
+            f"and summarize them into the context."
+        )
+
+        # 4. Call LLM
+        response = await self.llm.generate(prompt)
+
+        return response.text or "Could not generate context summary.", len(messages)
+

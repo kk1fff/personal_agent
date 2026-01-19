@@ -31,6 +31,7 @@ class ContextManagerTool(BaseTool):
                        f"'smart' uses time-gap clustering to return messages from the current session only. "
                        f"Use 'smart' mode when you need to understand the current conversation context "
                        f"(e.g., user says 'what do you think?' without clear context). "
+                       f"Use 'llm' mode to get a summarized context relevant to a specific query. "
                        f"Use 'recent' for a quick lookback at a specific number of messages.",
         )
         self.context_manager = context_manager
@@ -46,8 +47,9 @@ class ContextManagerTool(BaseTool):
         Args:
             context: Current conversation context
             **kwargs:
-                - mode: "recent" (default) or "smart"
+                - mode: "recent" (default), "smart", or "llm"
                 - count: number of messages to retrieve (for "recent" mode only)
+                - query: user query for "llm" mode
 
         Returns:
             ToolResult with formatted conversation history
@@ -56,6 +58,8 @@ class ContextManagerTool(BaseTool):
 
         if mode == "smart":
             return await self._execute_smart_mode(context)
+        elif mode == "llm":
+            return await self._execute_llm_mode(context, kwargs)
         else:
             return await self._execute_recent_mode(context, kwargs)
 
@@ -155,6 +159,42 @@ class ContextManagerTool(BaseTool):
                 error=f"Failed to retrieve smart context: {str(e)}"
             )
 
+    async def _execute_llm_mode(
+            self, context: ConversationContext, kwargs: dict
+    ) -> ToolResult:
+        """Execute in LLM mode (Fetch & Summarize)."""
+        query = kwargs.get("query")
+        if not query:
+            return ToolResult(
+                success=False,
+                data=None,
+                error="Query parameter is required for 'llm' mode"
+            )
+
+        try:
+            summary, count = await self.context_manager.get_llm_context(
+                chat_id=context.chat_id,
+                user_id=context.user_id,
+                query=query,
+            )
+
+            return ToolResult(
+                success=True,
+                data={
+                    "count": count,
+                    "mode": "llm",
+                    "summary": summary
+                },
+                message=f"Context Summary (based on {count} messages):\n\n{summary}"
+            )
+
+        except Exception as e:
+            return ToolResult(
+                success=False,
+                data=None,
+                error=f"Failed to generate LLM context: {str(e)}"
+            )
+
     def get_schema(self) -> Dict[str, Any]:
         """Get tool schema for pydantic_ai."""
         return {
@@ -165,8 +205,8 @@ class ContextManagerTool(BaseTool):
                 "properties": {
                     "mode": {
                         "type": "string",
-                        "enum": ["recent", "smart"],
-                        "description": "Context retrieval mode: 'recent' for last N messages, 'smart' for current session using time-gap clustering",
+                        "enum": ["recent", "smart", "llm"],
+                        "description": "Context retrieval mode: 'recent' for last N messages, 'smart' for current session using time-gap clustering, 'llm' for summarized context based on query.",
                         "default": "recent",
                     },
                     "count": {
@@ -174,6 +214,10 @@ class ContextManagerTool(BaseTool):
                         "description": f"Number of previous messages to retrieve (1 to {self.max_history}). Only used in 'recent' mode.",
                         "minimum": 1,
                         "maximum": self.max_history,
+                    },
+                    "query": {
+                        "type": "string",
+                        "description": "The user's current request/query. Required for 'llm' mode to generate relevant summary.",
                     }
                 },
                 "required": [],  # All parameters are optional with defaults

@@ -93,3 +93,6 @@ agent:
 
     # Maximum messages to inspect when performing time-gap clustering
     lookback_limit: 25
+
+    # Maximum recent references to pull for LLM summarization
+    message_limit: 20
