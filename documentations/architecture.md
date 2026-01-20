@@ -202,6 +202,12 @@ agent:
 - JSON, XML, and other structured data formats are prohibited in final responses
 - This prevents LLMs from outputting structured responses when tools are provided, which is common behavior in models fine-tuned for function calling
 
+**Tool Usage Clarification:**
+- The prompt explicitly states that only provided tools should be used
+- LLMs are instructed not to invent or call non-existent tools (e.g., "now", "time")
+- Current datetime is provided directly in the prompt, eliminating the need for a time tool
+- Questions that can be answered directly should not trigger tool calls
+
 ### 6. Conversation Context (`src/context/`)
 - **Purpose**: Manage conversation history and context
 - **Key Components**:
