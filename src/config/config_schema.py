@@ -65,10 +65,54 @@ class LLMConfig(BaseModel):
     gemini: Optional[GeminiConfig] = Field(default=None, description="Gemini configuration")
 
 
+class NotionWorkspaceConfig(BaseModel):
+    """Configuration for a single Notion workspace to index."""
+
+    name: str = Field(..., description="Friendly name for this workspace")
+    root_page_ids: List[str] = Field(
+        default_factory=list,
+        description="List of root page IDs to start indexing from",
+    )
+    database_ids: List[str] = Field(
+        default_factory=list,
+        description="List of database IDs to index",
+    )
+    exclude_page_ids: List[str] = Field(
+        default_factory=list,
+        description="Page IDs to exclude from indexing",
+    )
+    max_depth: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Maximum depth to traverse in page hierarchy",
+    )
+
+
 class NotionConfig(BaseModel):
     """Notion tool configuration."""
 
     api_key: str = Field(..., description="Notion API key")
+    workspaces: List[NotionWorkspaceConfig] = Field(
+        default_factory=list,
+        description="List of workspaces to index",
+    )
+    index_collection: str = Field(
+        default="notion_pages",
+        description="ChromaDB collection name for Notion index",
+    )
+    rate_limit_delay: float = Field(
+        default=0.35,
+        ge=0.1,
+        le=5.0,
+        description="Delay between Notion API calls in seconds",
+    )
+    search_results_default: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Default number of search results to return",
+    )
 
 
 class GoogleCalendarConfig(BaseModel):

@@ -150,12 +150,93 @@ System prompts support template variables that are replaced at runtime:
 - **Key Components**:
   - `base.py`: Base tool interface
   - `context_manager.py`: Conversation history retrieval tool
-  - `notion_reader.py`: Notion page reading tool
-  - `notion_writer.py`: Notion page writing tool
+  - `notion_search.py`: Notion semantic search and page reading tool
   - `calendar_reader.py`: Google Calendar reading tool
   - `calendar_writer.py`: Google Calendar writing tool
   - `registry.py`: Centralized tool registry
 - **Dependencies**: `notion-client`, `google-api-python-client`, `google-auth`
+
+### 5.1 Notion Module (`src/notion/`)
+- **Purpose**: Notion workspace indexing and search capabilities
+- **Key Components**:
+  - `client.py`: Notion API wrapper with page/block traversal
+  - `models.py`: Data models for Notion pages and indexing
+  - `traversal.py`: Workspace hierarchy traversal
+  - `indexer.py`: LLM-powered indexer with summary generation
+  - `cli.py`: Command-line interface for indexing
+- **Dependencies**: `notion-client`, `chromadb`, `sentence-transformers`
+
+#### Notion Indexing Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CLI Entry Point                          │
+│                   (src/notion/cli.py)                       │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   NotionIndexer                             │
+│                (src/notion/indexer.py)                      │
+│  - Orchestrates indexing process                            │
+│  - Generates LLM summaries                                  │
+│  - Stores in vector database                                │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+          ┌───────────┼───────────┐
+          │           │           │
+          ▼           ▼           ▼
+┌─────────────┐ ┌───────────┐ ┌─────────────────┐
+│  Traverser  │ │    LLM    │ │  Vector Store   │
+│(traversal.py│ │  Layer    │ │(memory/vector_  │
+│)            │ │           │ │store.py)        │
+└─────────────┘ └───────────┘ └─────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   NotionClient                              │
+│                 (src/notion/client.py)                      │
+│  - API wrapper with rate limiting                           │
+│  - Page/block content extraction                            │
+│  - Child page discovery                                     │
+└─────────────────────────────────────────────────────────────┘
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Notion API                                │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Index Schema (ChromaDB)
+
+Collection: `notion_pages`
+- **Document**: Searchable text (title + path + summary)
+- **ID**: Notion page ID (enables direct lookup)
+- **Metadata**:
+  - `page_id`: Notion page ID
+  - `title`: Page title
+  - `path`: Breadcrumb path (e.g., "Work > Projects > 2024")
+  - `summary`: LLM-generated summary
+  - `content_hash`: For change detection
+  - `last_edited_time`: Page last modified timestamp
+  - `workspace`: Workspace name
+
+#### Agent Tool Integration
+
+The `NotionSearchTool` (src/tools/notion_search.py) provides:
+1. **Semantic Search**: Query the vector index using natural language
+2. **Direct Page Read**: Fetch full content by page ID
+3. **Hybrid Mode**: Search first, then read best match
+
+```python
+# Tool parameters
+{
+    "query": "search query",      # Semantic search
+    "page_id": "abc123",          # Direct read (bypasses search)
+    "read_page": true,            # Fetch content of best match
+    "max_results": 5              # Number of search results
+}
+```
 
 ### 5.5 Agent Preferences and Prompt Variables (`src/config/`, `src/agent/prompts.py`)
 - **Purpose**: Inject dynamic variables into agent prompts and configure agent behavior

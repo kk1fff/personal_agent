@@ -62,15 +62,33 @@ class ToolRegistry:
             )
             self.register_tool(context_tool)
 
-        # Register Notion tools if configured
+        # Register Notion search tool if configured
         if config.tools.notion and config.tools.notion.api_key:
-            from .notion_reader import NotionReaderTool
-            from .notion_writer import NotionWriterTool
+            try:
+                from ..memory.vector_store import VectorStore
+                from ..memory.embeddings import EmbeddingGenerator
+                from .notion_search import NotionSearchTool
 
-            notion_reader = NotionReaderTool(config.tools.notion.api_key)
-            notion_writer = NotionWriterTool(config.tools.notion.api_key)
-            self.register_tool(notion_reader)
-            self.register_tool(notion_writer)
+                # Initialize vector store for Notion index
+                vector_store = VectorStore(
+                    db_path=config.database.vector_db_path,
+                    collection_name=config.tools.notion.index_collection,
+                )
+                embedding_generator = EmbeddingGenerator()
+
+                notion_search = NotionSearchTool(
+                    api_key=config.tools.notion.api_key,
+                    vector_store=vector_store,
+                    embedding_generator=embedding_generator,
+                    default_results=config.tools.notion.search_results_default,
+                )
+                self.register_tool(notion_search)
+            except ImportError as e:
+                # ChromaDB or sentence-transformers not installed
+                import logging
+                logging.getLogger(__name__).warning(
+                    f"Notion search tool not available: {e}"
+                )
 
         # Register Google Calendar tools if configured
         if config.tools.google_calendar:

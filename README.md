@@ -337,6 +337,75 @@ personal_agent/
 
 **Note**: The `data/` folder is automatically created when the application runs. It contains all persistent files including databases, vector stores, and logs. This folder is excluded from version control via `.gitignore`.
 
+## Notion Indexer
+
+The system includes a CLI tool for indexing your Notion workspace. This enables semantic search over your Notion pages.
+
+### Setup
+
+1. Configure your Notion API key and workspaces in `config.yaml`:
+
+```yaml
+tools:
+  notion:
+    api_key: "YOUR_NOTION_API_KEY"
+    workspaces:
+      - name: "personal"
+        root_page_ids:
+          - "abc123..."  # Your root page ID
+        database_ids: []  # Optional: databases to index
+        exclude_page_ids: []  # Pages to skip
+        max_depth: 10
+```
+
+2. Get your Notion page/database IDs from the URL:
+   - Page URL: `https://notion.so/Page-Title-abc123...` → ID is `abc123...`
+   - Make sure your Notion integration has access to the pages
+
+### Running the Indexer
+
+Index all configured workspaces:
+```bash
+python -m src.notion.cli -c config.yaml
+```
+
+With verbosity:
+```bash
+python -m src.notion.cli -c config.yaml -v      # Info level
+python -m src.notion.cli -c config.yaml -vv     # Debug level
+```
+
+Index a specific workspace:
+```bash
+python -m src.notion.cli -c config.yaml --workspace personal
+```
+
+Preview what would be indexed (dry run):
+```bash
+python -m src.notion.cli -c config.yaml --dry-run
+```
+
+Force reindex all pages (ignore change detection):
+```bash
+python -m src.notion.cli -c config.yaml --force
+```
+
+View index statistics:
+```bash
+python -m src.notion.cli -c config.yaml --stats
+```
+
+### How It Works
+
+1. The indexer traverses your Notion workspace from the configured root pages
+2. For each page, it:
+   - Builds a breadcrumb path (e.g., "Work > Projects > 2024")
+   - Extracts the page content
+   - Generates an LLM summary
+   - Stores the page in a vector database for semantic search
+3. Change detection uses content hashing to skip unchanged pages on subsequent runs
+4. The agent's `notion_search` tool queries this index to find relevant pages
+
 ## Usage
 
 Once the bot is running:
