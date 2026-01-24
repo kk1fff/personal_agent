@@ -45,7 +45,29 @@ llm:
 tools:
   notion:
     api_key: "YOUR_NOTION_API_KEY"
-  
+
+    # Workspaces to index (for notion-indexer CLI)
+    workspaces:
+      - name: "personal"
+        # Root page IDs to start indexing from
+        root_page_ids:
+          - "abc123..."  # Replace with your root page ID
+        # Optional: Database IDs to index
+        database_ids: []
+        # Optional: Page IDs to exclude from indexing
+        exclude_page_ids: []
+        # Maximum depth to traverse in page hierarchy
+        max_depth: 10
+
+    # ChromaDB collection name for Notion index
+    index_collection: "notion_pages"
+
+    # Delay between Notion API calls (seconds) to avoid rate limits
+    rate_limit_delay: 0.35
+
+    # Default number of search results
+    search_results_default: 5
+
   google_calendar:
     # Option 1: Use credentials file
     credentials_path: "path/to/credentials.json"
