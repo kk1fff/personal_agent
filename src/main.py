@@ -4,6 +4,7 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
+from typing import Optional, Union
 
 from telegram import Update
 
@@ -23,6 +24,23 @@ from .telegram.client import TelegramClient
 from .telegram.message_extractor import MessageExtractor
 from .tools.registry import ToolRegistry
 from .utils.logging import parse_verbosity, setup_logging
+
+# Multi-agent orchestrator imports
+from .agent.base import AgentContext, AgentResult
+from .agent.registry import AgentRegistry
+from .agent.dispatcher import DispatcherAgent
+from .agent.specialists import (
+    NotionSpecialist,
+    CalendarSpecialist,
+    MemorySpecialist,
+    ChitchatSpecialist,
+)
+from .tools.agent_tools import (
+    NotionAgentTool,
+    CalendarAgentTool,
+    MemoryAgentTool,
+)
+from .debug import RequestTrace, TraceEventType, TelegramResponseLogger
 
 # Set up logging with verbosity support
 verbosity = parse_verbosity(sys.argv)
@@ -80,21 +98,28 @@ def create_llm(config):
 
 async def process_message(
     update: Update,
-    agent: AgentProcessor,
+    agent: Union[AgentProcessor, DispatcherAgent],
     context_manager: ConversationContextManager,
     message_extractor: MessageExtractor,
     telegram_client: TelegramClient,
+    response_logger: Optional[TelegramResponseLogger] = None,
+    timezone: str = "UTC",
 ):
     """
     Process an incoming Telegram message.
 
     Args:
         update: Telegram update
-        agent: Agent processor
+        agent: Agent processor (legacy) or Dispatcher agent (orchestrator)
         context_manager: Conversation context manager
         message_extractor: Message extractor
         telegram_client: Telegram client
+        response_logger: Optional per-response logger for debug mode
+        timezone: Timezone for agent context
     """
+    extracted = None
+    trace = None
+
     try:
         # Extract message
         extracted = message_extractor.extract(update.to_dict())
@@ -127,6 +152,16 @@ async def process_message(
         # Only process and respond if mentioned
         logger.info("Bot mentioned, processing with agent...")
 
+        # Create request trace for debugging
+        if response_logger:
+            trace = RequestTrace()
+            trace.add_event(
+                TraceEventType.REQUEST,
+                source="telegram",
+                target="dispatcher" if isinstance(agent, DispatcherAgent) else "agent",
+                content_summary=extracted.message_text[:100],
+            )
+
         # Build message with reply context if applicable (Story 2: Reply Tagging)
         user_message = extracted.message_text
         if extracted.reply_to_message_id:
@@ -144,33 +179,86 @@ async def process_message(
                     f"Added reply context from message {extracted.reply_to_message_id}"
                 )
 
-        # Create context with ONLY the current message metadata (no history)
-        # Agent must explicitly request history via get_conversation_history tool
-        from .context.models import ConversationContext
-        context = ConversationContext(
-            chat_id=extracted.chat_id,
-            user_id=extracted.user_id,
-            messages=[],  # Empty - agent must request history via tool
-        )
+        # Process based on agent type
+        if isinstance(agent, DispatcherAgent):
+            # Orchestrator mode: use AgentContext
+            agent_context = AgentContext(
+                chat_id=extracted.chat_id,
+                user_id=extracted.user_id,
+                session_id=f"{extracted.chat_id}_{extracted.user_id}",
+                message_history=[],
+                metadata={
+                    "timezone": timezone,
+                    "trace": trace,
+                },
+            )
 
-        # Process through agent
-        response = await agent.process_command(user_message, context)
+            result = await agent.process(user_message, agent_context)
+            response_text = result.response_text
+
+            if trace:
+                trace.add_event(
+                    TraceEventType.RESPONSE,
+                    source="dispatcher",
+                    target="telegram",
+                    content_summary=response_text[:100] if response_text else "",
+                    duration_ms=result.processing_time_ms,
+                )
+        else:
+            # Legacy mode: use ConversationContext
+            from .context.models import ConversationContext
+            context = ConversationContext(
+                chat_id=extracted.chat_id,
+                user_id=extracted.user_id,
+                messages=[],  # Empty - agent must request history via tool
+            )
+
+            response = await agent.process_command(user_message, context)
+            response_text = response.text
+
+            if trace:
+                trace.add_event(
+                    TraceEventType.RESPONSE,
+                    source="agent",
+                    target="telegram",
+                    content_summary=response_text[:100] if response_text else "",
+                )
 
         # Send response back
-        if response.text:
-            await telegram_client.send_message(extracted.chat_id, response.text)
+        if response_text:
+            await telegram_client.send_message(extracted.chat_id, response_text)
 
             # Save assistant response to database
             await context_manager.save_message(
                 chat_id=extracted.chat_id,
                 user_id=extracted.user_id,
-                message=response.text,
+                message=response_text,
                 role="assistant",
-                raw_json=None,  # Assistant responses don't have Telegram update JSON
+                raw_json=None,
+            )
+
+        # Log response if debug enabled
+        if response_logger and trace:
+            trace.complete()
+            response_logger.log_response(
+                trace=trace,
+                chat_id=extracted.chat_id,
+                user_message=user_message,
+                bot_response=response_text or "",
+                user_id=extracted.user_id,
             )
 
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True)
+
+        if trace:
+            trace.add_event(
+                TraceEventType.ERROR,
+                source="system",
+                target="error",
+                content_summary=str(e),
+            )
+
         try:
             await telegram_client.send_message(
                 extracted.chat_id if extracted else 0,
@@ -360,23 +448,119 @@ async def main():
     else:
         logger.info("  No tool context available (run indexers to generate)")
 
-    # Initialize agent processor with bot username and preferences in system prompt
-    logger.info("Initializing agent processor")
+    # Initialize debug response logger if enabled
+    response_logger = None
+    debug_config = config.agent.debug
+    if debug_config.enable_response_logging:
+        logger.info("Initializing debug response logger")
+        response_logger = TelegramResponseLogger(
+            log_dir=debug_config.response_log_dir,
+            svg_dir=debug_config.svg_diagram_dir,
+            enable_svg=debug_config.enable_svg_diagrams,
+        )
+        logger.info("✓ Debug response logger ready")
+        logger.info(f"  Response logs: {debug_config.response_log_dir}")
+        if debug_config.enable_svg_diagrams:
+            logger.info(f"  SVG diagrams: {debug_config.svg_diagram_dir}")
+
+    # Initialize agent (orchestrator or legacy mode)
     agent_config = config.agent
-    system_prompt = get_system_prompt(
-        bot_username=bot_username,
-        timezone=agent_config.preferences.timezone,
-        language=agent_config.preferences.language,
-        inject_datetime=agent_config.inject_datetime,
-        max_history=agent_config.context.max_history,
-        tool_context=tool_context,
-    )
-    agent = AgentProcessor(
-        llm=llm,
-        tools=tool_registry.get_all_tools(),
-        system_prompt=system_prompt,
-    )
-    logger.info("✓ Agent processor ready")
+    orchestrator_config = agent_config.orchestrator
+
+    if orchestrator_config.enable:
+        # Multi-agent orchestrator mode
+        logger.info("Initializing multi-agent orchestrator")
+        logger.info("  Mode: Orchestrator (Dispatcher + Specialists)")
+
+        # Create agent registry
+        agent_registry = AgentRegistry()
+
+        # Get tools by name for specialists
+        all_tools = {t.get_name(): t for t in tool_registry.get_all_tools()}
+
+        # Create specialists with their specific tools
+        specialists = []
+
+        # Notion Specialist
+        if "notion_search" in all_tools:
+            notion_specialist = NotionSpecialist(
+                llm=llm,
+                notion_search_tool=all_tools["notion_search"],
+                notion_context=tool_context,
+            )
+            agent_registry.register(notion_specialist)
+            specialists.append(notion_specialist)
+            logger.info("    - Notion Specialist registered")
+
+        # Calendar Specialist
+        calendar_reader = all_tools.get("calendar_reader")
+        calendar_writer = all_tools.get("calendar_writer")
+        if calendar_reader or calendar_writer:
+            calendar_specialist = CalendarSpecialist(
+                llm=llm,
+                calendar_reader_tool=calendar_reader,
+                calendar_writer_tool=calendar_writer,
+            )
+            agent_registry.register(calendar_specialist)
+            specialists.append(calendar_specialist)
+            logger.info("    - Calendar Specialist registered")
+
+        # Memory Specialist
+        if "get_conversation_history" in all_tools:
+            memory_specialist = MemorySpecialist(
+                llm=llm,
+                context_manager_tool=all_tools["get_conversation_history"],
+            )
+            agent_registry.register(memory_specialist)
+            specialists.append(memory_specialist)
+            logger.info("    - Memory Specialist registered")
+
+        # Chitchat Specialist (always available)
+        chitchat_specialist = ChitchatSpecialist(llm=llm)
+        agent_registry.register(chitchat_specialist)
+        specialists.append(chitchat_specialist)
+        logger.info("    - Chitchat Specialist registered")
+
+        # Create agent-as-tool wrappers
+        agent_tools = []
+        for specialist in specialists:
+            if isinstance(specialist, NotionSpecialist):
+                agent_tools.append(NotionAgentTool(specialist))
+            elif isinstance(specialist, CalendarSpecialist):
+                agent_tools.append(CalendarAgentTool(specialist))
+            elif isinstance(specialist, MemorySpecialist):
+                agent_tools.append(MemoryAgentTool(specialist))
+            # Note: Chitchat is handled directly by dispatcher, no tool wrapper needed
+
+        # Create dispatcher
+        agent = DispatcherAgent(
+            llm=llm,
+            agent_registry=agent_registry,
+            agent_tools=agent_tools,
+            timezone=agent_config.preferences.timezone,
+        )
+        logger.info("✓ Dispatcher agent ready")
+        logger.info(f"  Specialists: {len(specialists)}")
+        logger.info(f"  Agent tools: {len(agent_tools)}")
+
+    else:
+        # Legacy single-agent mode
+        logger.info("Initializing agent processor (legacy mode)")
+        system_prompt = get_system_prompt(
+            bot_username=bot_username,
+            timezone=agent_config.preferences.timezone,
+            language=agent_config.preferences.language,
+            inject_datetime=agent_config.inject_datetime,
+            max_history=agent_config.context.max_history,
+            tool_context=tool_context,
+        )
+        agent = AgentProcessor(
+            llm=llm,
+            tools=tool_registry.get_all_tools(),
+            system_prompt=system_prompt,
+        )
+        logger.info("✓ Agent processor ready")
+
     if bot_username:
         logger.info(f"  Bot identifies as: @{bot_username}")
     logger.info(f"  Timezone: {agent_config.preferences.timezone}")
@@ -392,6 +576,8 @@ async def main():
             context_manager,
             message_extractor,
             telegram_client,
+            response_logger=response_logger,
+            timezone=agent_config.preferences.timezone,
         )
 
     # Start Telegram client
@@ -410,8 +596,11 @@ async def main():
         logger.info("✓ SYSTEM READY - Bot is now listening for messages")
         logger.info("=" * 60)
         logger.info(f"  LLM: {llm.get_model_name()}")
-        logger.info(f"  Mode: {config.telegram.mode}")
+        logger.info(f"  Telegram Mode: {config.telegram.mode}")
+        logger.info(f"  Agent Mode: {'Orchestrator' if orchestrator_config.enable else 'Legacy'}")
         logger.info(f"  Tools: {len(registered_tools)} registered")
+        if response_logger:
+            logger.info("  Debug Logging: Enabled")
         logger.info("")
         logger.info("Press Ctrl+C to stop")
         logger.info("=" * 60)

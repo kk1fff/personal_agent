@@ -140,6 +140,76 @@ History is retrieved on-demand only when needed.
 - Increase to `10-20` if your agent handles complex multi-turn conversations
 - Lower to `1-3` for simple Q&A bots to minimize costs
 
+### Multi-Agent Orchestrator Mode (Optional)
+
+The system supports an advanced multi-agent architecture where a Dispatcher (Concierge) agent routes requests to specialized agents:
+
+```yaml
+agent:
+  orchestrator:
+    enable: true  # Enable multi-agent mode (default: false)
+    # Optional: Override models for specific agents
+    # dispatcher_model: "gpt-4"
+    # specialist_models:
+    #   notion_specialist: "gpt-4"
+    #   calendar_specialist: "gpt-3.5-turbo"
+```
+
+**How It Works:**
+
+When enabled, the system uses a hierarchical agent structure:
+
+1. **Dispatcher (Concierge)**: Routes incoming requests to the appropriate specialist
+   - Handles simple greetings directly ("hi", "hello", "thanks")
+   - Never answers substantive questions directly
+   - Delegates to specialists based on request type
+
+2. **Specialists**:
+   - **Notion Specialist**: Searches and retrieves information from Notion workspace
+   - **Calendar Specialist**: Manages Google Calendar (read events, create events)
+   - **Memory Specialist**: Recalls past conversations and provides context
+   - **Chitchat Specialist**: Handles casual conversation
+
+**Benefits:**
+
+- Cleaner separation of concerns
+- Specialists are "blind" to each other's tools
+- Better prompt engineering per domain
+- Easier to add new capabilities
+
+When `enable: false` (default), the system uses the legacy single-agent mode.
+
+### Debug Features (Optional)
+
+Enable detailed logging and visualization of agent interactions:
+
+```yaml
+debug:
+  enable_response_logging: true   # Log each response to separate file
+  enable_svg_diagrams: true       # Generate SVG data flow diagrams
+  response_log_dir: "logs/responses"  # Directory for response logs
+  svg_diagram_dir: "logs/diagrams"    # Directory for SVG files
+```
+
+**Response Logging:**
+
+When enabled, each bot response generates a detailed log file at `logs/responses/response_{chat_id}_{timestamp}.log` containing:
+- Trace ID
+- User message
+- Bot response
+- All events (tool calls, delegations, etc.)
+- Timing information
+
+**SVG Diagrams:**
+
+When enabled, generates visual sequence diagrams showing how requests flow through the system:
+- Shows Dispatcher → Specialist delegations
+- Shows tool calls within specialists
+- Includes timing information
+- Useful for debugging and understanding system behavior
+
+Files are saved to `logs/diagrams/response_{chat_id}_{timestamp}.svg`.
+
 ### @Mention Filtering (Optional)
 
 Control when the bot responds to messages in group chats:
@@ -319,23 +389,47 @@ personal_agent/
 │   ├── main.py                 # Entry point
 │   ├── config/                 # Configuration management
 │   ├── telegram/               # Telegram integration
-│   ├── agent/                  # Agent processor
+│   ├── agent/                  # Agent system
+│   │   ├── agent_processor.py  # Legacy single-agent processor
+│   │   ├── base.py             # BaseAgent, AgentContext, AgentResult
+│   │   ├── registry.py         # AgentRegistry for specialist lookup
+│   │   ├── dispatcher.py       # Dispatcher (Concierge) agent
+│   │   ├── specialists/        # Specialist agents
+│   │   │   ├── base_specialist.py
+│   │   │   ├── notion_specialist.py
+│   │   │   ├── calendar_specialist.py
+│   │   │   ├── memory_specialist.py
+│   │   │   └── chitchat_specialist.py
+│   │   └── specialist_prompts/ # System prompts for agents
 │   ├── llm/                    # LLM abstraction layer
 │   ├── tools/                  # Tool implementations
+│   │   ├── agent_tools/        # Agent-as-Tool wrappers
+│   │   │   ├── base_agent_tool.py
+│   │   │   ├── notion_agent_tool.py
+│   │   │   ├── calendar_agent_tool.py
+│   │   │   └── memory_agent_tool.py
+│   │   └── ...                 # Other tools
 │   ├── context/                # Conversation context
 │   ├── memory/                 # Vector database
+│   ├── debug/                  # Debug infrastructure
+│   │   ├── trace.py            # Request tracing
+│   │   ├── svg_generator.py    # SVG diagram generation
+│   │   └── response_logger.py  # Per-response logging
 │   └── utils/                  # Utilities (logging, etc.)
 ├── tests/                      # Test suite
 ├── data/                       # Persistent data (auto-created)
 │   ├── conversations.db        # SQLite conversation database
 │   ├── vector_db/              # Vector database directory
 │   └── logs/                   # Log files directory
+├── logs/                       # Debug logs (when enabled)
+│   ├── responses/              # Per-response log files
+│   └── diagrams/               # SVG data flow diagrams
 ├── config.yaml.example         # Example configuration
 ├── requirements.txt            # Python dependencies
 └── README.md                   # This file
 ```
 
-**Note**: The `data/` folder is automatically created when the application runs. It contains all persistent files including databases, vector stores, and logs. This folder is excluded from version control via `.gitignore`.
+**Note**: The `data/` folder is automatically created when the application runs. It contains all persistent files including databases, vector stores, and logs. The `logs/` folder for debug features is created when debug options are enabled. Both folders are excluded from version control via `.gitignore`.
 
 ## Notion Indexer
 

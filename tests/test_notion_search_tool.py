@@ -120,6 +120,7 @@ class TestNotionSearchTool:
         result = await notion_search_tool.execute(
             conversation_context,
             query="test query",
+            read_page=False,  # Don't fetch full page content
         )
 
         assert result.success is True
