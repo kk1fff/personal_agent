@@ -13,6 +13,8 @@ class TraceEventType(Enum):
     RESPONSE = "response"
     TOOL_CALL = "tool_call"
     DELEGATION = "delegation"
+    LLM_REQUEST = "llm_request"
+    LLM_RESPONSE = "llm_response"
     ERROR = "error"
 
 

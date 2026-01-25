@@ -59,7 +59,8 @@ def conversation_context():
                 timestamp=datetime.now()
             )
         ],
-        recent_limit=10
+        recent_limit=10,
+        metadata={}
     )
 
 
@@ -201,6 +202,11 @@ class TestProcessCommand:
             call_kwargs = mock_run.call_args.kwargs
             assert call_kwargs['user_prompt'] == "Test message"
             assert call_kwargs['deps'] == conversation_context
+            
+            # Since we patched agent.run, the model adapter logic inside process_command 
+            # might not be fully exercised if it relies on side effects, but we can verify
+            # no errors occurred during execution.
+            # In a real scenario, we'd verify set_trace was called if context had trace.
 
     @pytest.mark.asyncio
     async def test_process_command_returns_agent_response(self, mock_llm, mock_tool, conversation_context):
@@ -370,7 +376,8 @@ class TestToolExecution:
             chat_id=123,
             user_id=456,
             messages=[],
-            recent_limit=10
+            recent_limit=10,
+            metadata={}
         )
 
         # Call wrapper
@@ -413,7 +420,8 @@ class TestToolExecution:
             chat_id=123,
             user_id=456,
             messages=[],
-            recent_limit=10
+            recent_limit=10,
+            metadata={}
         )
 
         # Call wrapper
@@ -456,7 +464,8 @@ class TestToolExecution:
             chat_id=123,
             user_id=456,
             messages=[],
-            recent_limit=10
+            recent_limit=10,
+            metadata={}
         )
 
         # Call wrapper

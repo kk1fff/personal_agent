@@ -29,6 +29,8 @@ class SVGDataFlowGenerator:
         "response": "#2196F3",  # Blue
         "tool_call": "#FF9800",  # Orange
         "delegation": "#9C27B0",  # Purple
+        "llm_request": "#607D8B",  # Blue Grey
+        "llm_response": "#00BCD4",  # Cyan
         "error": "#F44336",  # Red
     }
 
@@ -119,6 +121,12 @@ class SVGDataFlowGenerator:
             </marker>
             <marker id="arrowhead-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                 <polygon points="0 0, 10 3.5, 0 7" fill="#9C27B0"/>
+            </marker>
+            <marker id="arrowhead-blue-grey" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#607D8B"/>
+            </marker>
+            <marker id="arrowhead-cyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#00BCD4"/>
             </marker>
         </defs>'''
 
@@ -215,6 +223,8 @@ class SVGDataFlowGenerator:
             "response": "arrowhead-blue",
             "tool_call": "arrowhead-orange",
             "delegation": "arrowhead-purple",
+            "llm_request": "arrowhead-blue-grey",
+            "llm_response": "arrowhead-cyan",
         }
         marker = marker_map.get(event_type, "arrowhead")
 

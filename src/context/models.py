@@ -26,6 +26,7 @@ class ConversationContext:
     chat_id: int
     user_id: int
     messages: List[Message]
+    metadata: Optional[dict] = None  # Added metadata support
     recent_limit: int = 10
 
     def format_for_llm(self) -> str:

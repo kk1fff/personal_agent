@@ -197,7 +197,7 @@ When enabled, each bot response generates a detailed log file at `logs/responses
 - Trace ID
 - User message
 - Bot response
-- All events (tool calls, delegations, etc.)
+- All events (tool calls, delegations, LLM interactions, etc.)
 - Timing information
 
 **SVG Diagrams:**

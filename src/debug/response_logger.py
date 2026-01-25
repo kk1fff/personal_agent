@@ -149,6 +149,19 @@ class TelegramResponseLogger:
                 f.write(f"    {event.content_summary}\n")
                 if event.duration_ms:
                     f.write(f"    Duration: {event.duration_ms:.2f}ms\n")
+                
+                # Print metadata if available
+                if event.metadata:
+                    f.write("    Metadata:\n")
+                    for key, value in event.metadata.items():
+                        # Handle long values (like full LLM content)
+                        val_str = str(value)
+                        if "\n" in val_str or len(val_str) > 100:
+                            f.write(f"      {key}:\n")
+                            for line in val_str.split("\n"):
+                                f.write(f"        {line}\n")
+                        else:
+                            f.write(f"      {key}: {value}\n")
                 f.write("\n")
 
             f.write("=" * 70 + "\n")
