@@ -5,6 +5,7 @@ from typing import Callable, Optional
 from telegram import Bot
 from telegram.error import TelegramError
 
+from .markdown_formatter import markdown_to_telegram_html, split_message_for_telegram
 from .poll_handler import PollHandler
 from .webhook_handler import WebhookHandler
 
@@ -76,29 +77,41 @@ class TelegramClient:
         )
         await self.handler.start()
 
-    async def send_message(self, chat_id: int, text: str) -> None:
+    async def send_message(
+        self, chat_id: int, text: str, format_markdown: bool = True
+    ) -> None:
         """
         Send a message to a chat.
 
         Args:
             chat_id: Telegram chat ID
-            text: Message text
+            text: Message text (can contain markdown)
+            format_markdown: If True, convert markdown to Telegram HTML format
 
         Raises:
             TelegramError: If message sending fails
         """
         try:
-            # Split long messages (Telegram has a 4096 character limit)
-            max_length = 4096
-            if len(text) <= max_length:
-                await self.bot.send_message(chat_id=chat_id, text=text)
-            else:
-                # Split into chunks
-                chunks = [
-                    text[i : i + max_length] for i in range(0, len(text), max_length)
-                ]
+            if format_markdown:
+                # Convert markdown to Telegram-compatible HTML
+                formatted_text = markdown_to_telegram_html(text)
+                chunks = split_message_for_telegram(formatted_text)
                 for chunk in chunks:
-                    await self.bot.send_message(chat_id=chat_id, text=chunk)
+                    await self.bot.send_message(
+                        chat_id=chat_id, text=chunk, parse_mode="HTML"
+                    )
+            else:
+                # Send as plain text
+                max_length = 4096
+                if len(text) <= max_length:
+                    await self.bot.send_message(chat_id=chat_id, text=text)
+                else:
+                    chunks = [
+                        text[i : i + max_length]
+                        for i in range(0, len(text), max_length)
+                    ]
+                    for chunk in chunks:
+                        await self.bot.send_message(chat_id=chat_id, text=chunk)
         except TelegramError as e:
             raise TelegramError(f"Failed to send message: {str(e)}")
 
