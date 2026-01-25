@@ -404,7 +404,37 @@ python -m src.notion.cli -c config.yaml --stats
    - Generates an LLM summary
    - Stores the page in a vector database for semantic search
 3. Change detection uses content hashing to skip unchanged pages on subsequent runs
-4. The agent's `notion_search` tool queries this index to find relevant pages
+4. After indexing, a workspace summary is generated and saved to `data/notion/info.json`
+5. The agent's `notion_search` tool queries this index to find relevant pages
+
+### Workspace Summary and Prompt Injection
+
+When indexing completes, the system generates an overall summary of your Notion workspace. This summary:
+- Describes what types of content are in your Notion (projects, notes, ideas, etc.)
+- Lists the indexed workspaces and their page counts
+- Is automatically injected into the agent's system prompt at startup
+
+This allows the agent to know what content is available in your Notion without needing to perform a search first. For example, the agent can say "I see you have project documentation and meeting notes in your Notion" without you asking.
+
+The summary is stored in `data/notion/info.json`:
+```json
+{
+  "generated_at": "2026-01-24T12:00:00Z",
+  "summary": "Your Notion workspace contains 42 indexed pages...",
+  "workspaces": [
+    {
+      "name": "Personal",
+      "page_count": 42,
+      "topics": ["Projects", "Notes", "Ideas"]
+    }
+  ]
+}
+```
+
+To regenerate the summary after adding new content, run the indexer again:
+```bash
+python -m src.notion.cli -c config.yaml
+```
 
 ## Usage
 

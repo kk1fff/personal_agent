@@ -49,3 +49,4 @@ class IndexingStats:
     pages_failed: int = 0
     pages_deleted: int = 0
     errors: List[str] = field(default_factory=list)
+    indexed_pages: List["NotionPage"] = field(default_factory=list)

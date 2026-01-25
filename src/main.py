@@ -8,7 +8,9 @@ from pathlib import Path
 from telegram import Update
 
 from .agent.agent_processor import AgentProcessor
+from .agent.prompt_injection import PromptInjectionRegistry
 from .agent.prompts import get_system_prompt
+from .notion.prompt_injector import NotionPromptInjector
 from .config.config_loader import load_config
 from .context.conversation_db import ConversationDB
 from .context.context_manager import ConversationContextManager
@@ -340,6 +342,24 @@ async def main():
     if not config.telegram.require_mention:
         logger.info("@Mention filtering disabled - responding to all allowed messages")
 
+    # Initialize prompt injection registry
+    logger.info("Initializing prompt injectors")
+    injection_registry = PromptInjectionRegistry()
+
+    # Register Notion injector if Notion is configured
+    if config.tools.notion and config.tools.notion.api_key:
+        notion_injector = NotionPromptInjector()
+        injection_registry.register(notion_injector)
+        logger.info("  Registered: Notion prompt injector")
+
+    # Collect tool context from all injectors
+    tool_context = injection_registry.collect_all_context()
+    if tool_context:
+        logger.info("  Tool context collected successfully")
+        logger.debug(f"  Tool context preview: {tool_context[:200]}...")
+    else:
+        logger.info("  No tool context available (run indexers to generate)")
+
     # Initialize agent processor with bot username and preferences in system prompt
     logger.info("Initializing agent processor")
     agent_config = config.agent
@@ -349,6 +369,7 @@ async def main():
         language=agent_config.preferences.language,
         inject_datetime=agent_config.inject_datetime,
         max_history=agent_config.context.max_history,
+        tool_context=tool_context,
     )
     agent = AgentProcessor(
         llm=llm,
