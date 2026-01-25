@@ -254,6 +254,7 @@ The system supports injecting runtime variables into agent system prompts:
 - `{timezone}`: Configured timezone (IANA timezone name)
 - `{language}`: Preferred response language (ISO 639-1 code)
 - `{max_history}`: Maximum number of previous messages agent can request via get_conversation_history tool
+- `{tool_context}`: Context contributed by tools via the prompt injection system (see section 5.6)
 
 **Configuration:**
 ```yaml
@@ -288,6 +289,86 @@ agent:
 - LLMs are instructed not to invent or call non-existent tools (e.g., "now", "time")
 - Current datetime is provided directly in the prompt, eliminating the need for a time tool
 - Questions that can be answered directly should not trigger tool calls
+
+### 5.6 Prompt Injection System (`src/agent/prompt_injection.py`)
+- **Purpose**: Allow tools to contribute context to the agent's system prompt at startup
+- **Key Components**:
+  - `prompt_injection.py`: Base class and registry for prompt injectors
+  - `src/notion/prompt_injector.py`: Notion-specific injector
+- **Dependencies**: None (standard library only)
+
+#### Prompt Injection Architecture
+
+The prompt injection system provides a modular way for tools and integrations to add context to the agent's system prompt. This enables the agent to have awareness of available data sources without needing to call tools.
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     Startup (main.py)                        │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+                      ▼
+┌─────────────────────────────────────────────────────────────┐
+│              PromptInjectionRegistry                         │
+│  - register(injector: BasePromptInjector)                   │
+│  - collect_all_context() -> str                             │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+          ┌───────────┼───────────┐
+          ▼           ▼           ▼
+┌─────────────┐ ┌───────────┐ ┌─────────────┐
+│NotionPrompt │ │Future     │ │Future       │
+│Injector     │ │Calendar   │ │Injectors    │
+│             │ │Injector   │ │             │
+└──────┬──────┘ └───────────┘ └─────────────┘
+       │
+       ▼
+  data/notion/info.json
+```
+
+**Base Class: `BasePromptInjector`**
+- Abstract class that injectors extend
+- `get_context()` -> `Optional[str]`: Returns context to inject or None
+- `name`: Unique identifier for the injector
+- `priority`: Order in which injectors are processed (lower = first)
+
+**Registry: `PromptInjectionRegistry`**
+- Collects and manages registered injectors
+- `register(injector)`: Add an injector
+- `collect_all_context()`: Gather context from all injectors, ordered by priority
+- Gracefully handles injector failures (logs warning, continues)
+
+**Notion Injector: `NotionPromptInjector`**
+- Reads workspace summary from `data/notion/info.json`
+- Provides context about indexed Notion pages
+- Generated during Notion indexing via CLI
+
+**info.json Schema:**
+```json
+{
+  "generated_at": "2026-01-24T12:00:00Z",
+  "summary": "Your Notion workspace contains 42 pages covering projects and notes.",
+  "workspaces": [
+    {
+      "name": "Personal",
+      "page_count": 42,
+      "topics": ["Projects", "Notes", "Ideas"],
+      "summary": "Contains project documentation and personal notes."
+    }
+  ]
+}
+```
+
+**Template Variable:**
+- `{tool_context}`: Placeholder in SYSTEM_PROMPT for injected context
+- Replaced with combined output from all registered injectors
+- Empty string if no injectors have context
+
+**Startup Flow:**
+1. `PromptInjectionRegistry` created
+2. Injectors registered based on configuration (e.g., NotionPromptInjector if Notion configured)
+3. `collect_all_context()` gathers context from all injectors
+4. Context passed to `get_system_prompt(tool_context=...)`
+5. Final prompt passed to AgentProcessor
 
 ### 6. Conversation Context (`src/context/`)
 - **Purpose**: Manage conversation history and context

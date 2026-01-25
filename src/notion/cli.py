@@ -253,6 +253,7 @@ async def run_indexer(args: argparse.Namespace) -> int:
     total_indexed = 0
     total_skipped = 0
     total_failed = 0
+    all_workspaces_data = []
 
     for workspace in workspaces:
         print(f"\nIndexing workspace: {workspace.name}")
@@ -285,6 +286,22 @@ async def run_indexer(args: argparse.Namespace) -> int:
         total_indexed += stats.pages_indexed
         total_skipped += stats.pages_skipped
         total_failed += stats.pages_failed
+
+        # Generate workspace summary for prompt injection
+        if stats.indexed_pages:
+            logger.info(f"Generating workspace summary for {workspace.name}...")
+            workspace_data = await indexer.generate_workspace_summary(
+                pages=stats.indexed_pages,
+                workspace_name=workspace.name,
+            )
+            all_workspaces_data.append(workspace_data)
+            if args.verbose >= 1:
+                print(f"  Summary: {workspace_data.get('summary', '')[:100]}...")
+
+    # Save workspace info for prompt injection
+    if all_workspaces_data:
+        indexer.save_workspace_info(all_workspaces_data)
+        print(f"\nWorkspace info saved to: {indexer.DEFAULT_INFO_PATH}")
 
     # Summary
     print("\n" + "=" * 40)

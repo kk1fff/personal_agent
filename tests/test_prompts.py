@@ -132,3 +132,49 @@ def test_system_prompt_has_plain_text_instruction():
     assert "plain" in SYSTEM_PROMPT.lower() or "natural language" in SYSTEM_PROMPT.lower()
     # Verify prompt explicitly mentions NOT to use JSON
     assert "JSON" in SYSTEM_PROMPT or "json" in SYSTEM_PROMPT
+
+
+def test_system_prompt_has_tool_context_placeholder():
+    """Test that SYSTEM_PROMPT contains tool_context placeholder."""
+    assert "{tool_context}" in SYSTEM_PROMPT
+
+
+def test_inject_template_variables_with_tool_context():
+    """Test template injection with tool_context."""
+    template = "Context: {tool_context}, TZ: {timezone}"
+    result = inject_template_variables(
+        template,
+        timezone="UTC",
+        tool_context="Notion has 10 pages.",
+    )
+    assert "Notion has 10 pages" in result
+    assert "UTC" in result
+
+
+def test_inject_template_variables_empty_tool_context():
+    """Test template injection with empty tool_context."""
+    template = "Context: {tool_context}, TZ: {timezone}"
+    result = inject_template_variables(
+        template,
+        timezone="UTC",
+        tool_context="",
+    )
+    assert "Context: , TZ: UTC" in result
+
+
+def test_get_system_prompt_with_tool_context():
+    """Test system prompt includes tool context."""
+    result = get_system_prompt(
+        tool_context="## Notion Workspace\nYou have 42 pages indexed."
+    )
+    assert "Notion Workspace" in result
+    assert "42 pages indexed" in result
+    assert "{tool_context}" not in result
+
+
+def test_get_system_prompt_without_tool_context():
+    """Test system prompt works without tool context."""
+    result = get_system_prompt()
+    assert "{tool_context}" not in result
+    # Should have empty string where tool_context was
+    assert "Current Information" in result

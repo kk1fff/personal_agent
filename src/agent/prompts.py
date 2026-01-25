@@ -16,6 +16,8 @@ Current Information (use this directly, no tool needed):
 - Timezone: {timezone}
 - Preferred language: {language}
 
+{tool_context}
+
 When interacting with users:
 1. Be helpful, concise, and clear in your responses
 2. If you need clarification, ask follow-up questions
@@ -62,6 +64,7 @@ def inject_template_variables(
     language: str = "en",
     inject_datetime: bool = True,
     max_history: int = 5,
+    tool_context: str = "",
 ) -> str:
     """
     Inject template variables into prompt string.
@@ -71,6 +74,7 @@ def inject_template_variables(
     - {timezone} -> The configured timezone
     - {language} -> The preferred language code
     - {max_history} -> Maximum number of previous messages agent can request
+    - {tool_context} -> Context contributed by tools/injectors
 
     Args:
         template: Template string with placeholders
@@ -78,6 +82,7 @@ def inject_template_variables(
         language: ISO 639-1 language code
         inject_datetime: Whether to inject current datetime (if False, uses placeholder)
         max_history: Maximum number of previous messages agent can request
+        tool_context: Context from tool injectors (e.g., Notion summary)
 
     Returns:
         Template with placeholders replaced by actual values
@@ -86,6 +91,7 @@ def inject_template_variables(
         "timezone": timezone,
         "language": language,
         "max_history": max_history,
+        "tool_context": tool_context,
     }
 
     if inject_datetime:
@@ -103,6 +109,7 @@ def get_system_prompt(
     language: str = "en",
     inject_datetime: bool = True,
     max_history: int = 5,
+    tool_context: str = "",
 ) -> str:
     """
     Get system prompt with optional bot username and template variables.
@@ -113,6 +120,7 @@ def get_system_prompt(
         language: ISO 639-1 language code
         inject_datetime: Whether to inject current datetime
         max_history: Maximum number of previous messages agent can request
+        tool_context: Context from tool injectors (e.g., Notion summary)
 
     Returns:
         Formatted system prompt with all variables injected
@@ -124,6 +132,7 @@ def get_system_prompt(
         language=language,
         inject_datetime=inject_datetime,
         max_history=max_history,
+        tool_context=tool_context,
     )
 
     # Then add bot username if provided (existing pattern)

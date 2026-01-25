@@ -1,8 +1,10 @@
 """Notion workspace indexer."""
 
 import hashlib
+import json
 import logging
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Set
 
 from ..config.config_schema import NotionWorkspaceConfig
@@ -19,6 +21,19 @@ class NotionIndexer:
 
     COLLECTION_NAME = "notion_pages"
     MAX_CONTENT_LENGTH = 8000  # Max chars for summary generation
+    DEFAULT_INFO_PATH = "data/notion/info.json"
+
+    WORKSPACE_SUMMARY_PROMPT = """You are analyzing a user's Notion workspace. Based on the following indexed pages,
+provide a brief summary (2-3 sentences) of what types of content the user stores in their Notion.
+Focus on the main categories and topics. Be concise.
+
+Workspace: {workspace_name}
+Number of pages: {page_count}
+
+Indexed pages:
+{pages}
+
+Summary:"""
 
     def __init__(
         self,
@@ -99,6 +114,7 @@ Summary:"""
 
                 if indexed_page:
                     stats.pages_indexed += 1
+                    stats.indexed_pages.append(indexed_page)
                     indexed_page_ids.add(page_id)
                     self.logger.info(f"Indexed: {path}")
                 else:
@@ -300,3 +316,134 @@ Summary:"""
             "collection_name": self.vector_store.collection_name,
             "note": "Use --stats flag for detailed statistics",
         }
+
+    async def generate_workspace_summary(
+        self,
+        pages: List[NotionPage],
+        workspace_name: str,
+    ) -> Dict[str, Any]:
+        """
+        Generate an overall summary of a workspace after indexing.
+
+        Uses LLM to create a summary of what types of content are in the workspace
+        based on the indexed pages.
+
+        Args:
+            pages: List of indexed NotionPage objects
+            workspace_name: Name of the workspace
+
+        Returns:
+            Dictionary with workspace summary data:
+            - name: Workspace name
+            - page_count: Number of pages
+            - topics: List of main topics extracted from paths
+            - summary: LLM-generated summary of workspace content
+        """
+        if not pages:
+            return {
+                "name": workspace_name,
+                "page_count": 0,
+                "topics": [],
+                "summary": f"Empty workspace with no indexed pages.",
+            }
+
+        # Build page list for LLM (limit to prevent token overflow)
+        page_descriptions = []
+        for page in pages[:50]:
+            summary_preview = page.summary[:100] + "..." if len(page.summary) > 100 else page.summary
+            page_descriptions.append(f"- {page.path}: {summary_preview}")
+
+        pages_text = "\n".join(page_descriptions)
+
+        prompt = self.WORKSPACE_SUMMARY_PROMPT.format(
+            workspace_name=workspace_name,
+            page_count=len(pages),
+            pages=pages_text,
+        )
+
+        try:
+            response = await self.llm.generate(
+                prompt=prompt,
+                system_prompt="You are a helpful assistant that creates concise summaries.",
+            )
+            summary = response.text.strip() if response.text else ""
+        except Exception as e:
+            self.logger.warning(f"Failed to generate workspace summary: {e}")
+            summary = f"A Notion workspace containing {len(pages)} pages."
+
+        # Extract main topics from page paths
+        topics = self._extract_topics(pages)
+
+        return {
+            "name": workspace_name,
+            "page_count": len(pages),
+            "topics": topics,
+            "summary": summary,
+        }
+
+    def _extract_topics(self, pages: List[NotionPage]) -> List[str]:
+        """
+        Extract main topics from page paths.
+
+        Extracts the first-level path segments as topics.
+
+        Args:
+            pages: List of NotionPage objects
+
+        Returns:
+            List of unique topics (max 10)
+        """
+        topics = set()
+        for page in pages:
+            parts = page.path.split(" > ")
+            if parts and parts[0]:
+                topics.add(parts[0])
+        return list(topics)[:10]
+
+    def save_workspace_info(
+        self,
+        workspaces_data: List[Dict[str, Any]],
+        output_path: Optional[str] = None,
+    ) -> None:
+        """
+        Save workspace information to JSON file.
+
+        Creates the overall summary from all workspace summaries and saves
+        to data/notion/info.json for use by the prompt injection system.
+
+        Args:
+            workspaces_data: List of workspace summary dictionaries
+            output_path: Path to save info.json (default: data/notion/info.json)
+        """
+        output_file = Path(output_path or self.DEFAULT_INFO_PATH)
+
+        # Ensure directory exists
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Combine all workspace summaries into overall summary
+        all_summaries = [
+            ws.get("summary", "") for ws in workspaces_data if ws.get("summary")
+        ]
+        total_pages = sum(ws.get("page_count", 0) for ws in workspaces_data)
+
+        # Build overall summary
+        if workspaces_data:
+            overall_summary = (
+                f"Your Notion workspace contains {total_pages} indexed pages across "
+                f"{len(workspaces_data)} workspace(s). "
+            )
+            if all_summaries:
+                overall_summary += " ".join(all_summaries)
+        else:
+            overall_summary = "No Notion workspaces have been indexed yet."
+
+        info = {
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "summary": overall_summary,
+            "workspaces": workspaces_data,
+        }
+
+        with open(output_file, "w") as f:
+            json.dump(info, f, indent=2)
+
+        self.logger.info(f"Saved workspace info to {output_file}")
