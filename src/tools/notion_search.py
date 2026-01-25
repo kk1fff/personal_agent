@@ -56,7 +56,7 @@ class NotionSearchTool(BaseTool):
             context: Conversation context
             **kwargs:
                 - query (str, required): Search query
-                - read_page (bool, optional): If True, fetch full page content
+                - read_page (bool, optional): If False, only fetch the meta data
                 - page_id (str, optional): Specific page ID to read
                 - max_results (int, optional): Max search results
 
@@ -64,7 +64,7 @@ class NotionSearchTool(BaseTool):
             ToolResult with search results and/or page content
         """
         query = kwargs.get("query")
-        read_page = kwargs.get("read_page", False)
+        read_page = kwargs.get("read_page", True)
         page_id = kwargs.get("page_id")
         max_results = kwargs.get("max_results", self.default_results)
 
