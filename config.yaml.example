@@ -146,7 +146,7 @@ agent:
     enable_svg_diagrams: false
 
     # Directory for per-response log files
-    response_log_dir: "logs/responses"
+    response_log_dir: "data/response_logs/responses"
 
     # Directory for SVG diagram files
-    svg_diagram_dir: "logs/diagrams"
+    svg_diagram_dir: "data/response_logs/diagrams"
