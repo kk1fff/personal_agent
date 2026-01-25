@@ -36,7 +36,8 @@ class NotionSearchTool(BaseTool):
             description=(
                 "Search your Notion workspace and read page content. "
                 "First searches the index for relevant pages, then optionally fetches "
-                "the actual content. Use this to find information in your notes."
+                "the actual content. Use this to find information in your notes. "
+                "Either 'query' or 'page_id' parameter is required."
             ),
         )
         self.notion_client = NotionClient(api_key)
