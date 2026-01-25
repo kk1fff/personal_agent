@@ -211,6 +211,7 @@ async def process_message(
                 chat_id=extracted.chat_id,
                 user_id=extracted.user_id,
                 messages=[],  # Empty - agent must request history via tool
+                metadata={"trace": trace} if trace else None,
             )
 
             response = await agent.process_command(user_message, context)

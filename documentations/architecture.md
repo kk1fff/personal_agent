@@ -718,7 +718,10 @@ src/tools/agent_tools/
 When debugging is enabled, the system generates:
 
 1. **Per-Response Logs**: Detailed log file for each Telegram response
-2. **SVG Data Flow Diagrams**: Visual sequence diagrams showing request flow
+2. **SVG Data Flow Diagrams**: Visual sequence diagrams showing request flow, including:
+   - Tool calls with arguments and execution time
+   - Independent visualization of Agent and Tool interactions
+   - LLM Request/Response events with token usage (simulated)
 
 ```yaml
 agent:

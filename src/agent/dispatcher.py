@@ -15,6 +15,8 @@ from ..tools.base import BaseTool, ToolResult
 
 logger = logging.getLogger(__name__)
 
+from ..debug import TraceEventType
+
 
 class DispatcherAgent(BaseAgent):
     """The Dispatcher (Concierge) agent that routes requests to specialists.
@@ -81,6 +83,33 @@ class DispatcherAgent(BaseAgent):
             """Tool wrapper for PydanticAI integration."""
             context = ctx.deps
             result = await tool.execute(context, **kwargs)
+
+            # Trace tool execution if trace is available
+            trace = context.metadata.get("trace")
+            start_time = time.time()
+            
+            if trace:
+                trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source="dispatcher",
+                    target=tool_name,
+                    content_summary=f"Calling specialist tool: {tool_name}",
+                    metadata=kwargs
+                )
+
+            result = await tool.execute(context, **kwargs)
+            duration = (time.time() - start_time) * 1000
+
+            # Update trace with result
+            if trace:
+                trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source=tool_name,
+                    target="dispatcher",
+                    content_summary=f"Tool result: {'Success' if result.success else 'Error'}",
+                    duration_ms=duration,
+                    metadata={"success": result.success}
+                )
 
             if result.success:
                 return f"Result from specialist:\n{result.message or str(result.data) or 'Success'}"
@@ -157,6 +186,10 @@ class DispatcherAgent(BaseAgent):
 
             # Log dispatching
             logger.debug(f"[dispatcher] Processing: {message[:100]}...")
+
+            # Set trace on the model adapter
+            if "trace" in context.metadata:
+                self._pydantic_agent.model.set_trace(context.metadata["trace"])
 
             # Run through pydantic_ai
             result = await self._pydantic_agent.run(

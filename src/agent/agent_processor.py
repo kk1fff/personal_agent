@@ -15,6 +15,8 @@ from .prompts import SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
+from ..debug import RequestTrace, TraceEventType
+
 
 class PydanticAIModelAdapter(Model):
     """Adapter to use our BaseLLM with pydantic_ai."""
@@ -29,7 +31,12 @@ class PydanticAIModelAdapter(Model):
         """
         self.llm = llm
         self._system_prompt = system_prompt or ""
+        self._trace: Optional[RequestTrace] = None
         super().__init__()
+
+    def set_trace(self, trace: Optional[RequestTrace]):
+        """Set the request trace for the current execution."""
+        self._trace = trace
 
     @property
     def system(self) -> str:
@@ -106,11 +113,36 @@ class PydanticAIModelAdapter(Model):
         logger.debug("=" * 60)
 
         # Call the LLM with tools
+        if self._trace:
+            self._trace.add_event(
+                TraceEventType.LLM_REQUEST,
+                source="agent",
+                target=self.model_name,
+                content_summary=f"Sending request to LLM (Length: {len(user_prompt)})",
+                metadata={
+                    "model": self.model_name,
+                    "tool_count": len(tools) if tools else 0,
+                    "full_content": f"System:\n{system_prompt}\n\nUser:\n{user_prompt}\n\nTools:\n{tools}"
+                }
+            )
+
         response = await self.llm.generate(
             user_prompt,
             system_prompt=system_prompt,
             tools=tools,
         )
+
+        if self._trace:
+            self._trace.add_event(
+                TraceEventType.LLM_RESPONSE,
+                source=self.model_name,
+                target="agent",
+                content_summary=f"Received response from LLM (Length: {len(response.text or '')})",
+                metadata={
+                    "has_tools": bool(response.tool_calls),
+                    "full_content": response.text or str(response.tool_calls)
+                }
+            )
 
         # Build response parts
         response_parts = []
@@ -218,9 +250,39 @@ class AgentProcessor:
             """Tool wrapper for PydanticAI integration."""
             # Extract ConversationContext from RunContext
             context = ctx.deps
+            
+            # Trace tool execution if trace is available
+            trace = None
+            if hasattr(context, "metadata") and context.metadata and "trace" in context.metadata:
+                trace = context.metadata["trace"]
+                
+            start_time = 0
+            if trace:
+                start_time = __import__("time").time()
+                trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source="agent",
+                    target=tool_name,
+                    content_summary=f"Calling tool: {tool_name}",
+                    metadata=kwargs
+                )
 
             # Execute the tool
             result = await tool.execute(context, **kwargs)
+            
+            # Trace completion
+            if trace:
+                duration = (__import__("time").time() - start_time) * 1000
+                trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source=tool_name,
+                    target="agent",
+                    content_summary=f"Tool result: {'Success' if result.success else 'Error'}",
+                    duration_ms=duration,
+                    metadata={"success": result.success, "result": result.message or str(result.data)}
+                )
+
+            # Convert ToolResult to string for PydanticAI
 
             # Convert ToolResult to string for PydanticAI
             if result.success:
@@ -262,6 +324,10 @@ class AgentProcessor:
         logger.debug("=" * 60)
 
         try:
+            # Inject trace if available in context
+            if hasattr(context, "metadata") and "trace" in context.metadata:
+                self.agent.model.set_trace(context.metadata["trace"])
+
             # Run agent with ConversationContext injected as dependency
             result = await self.agent.run(
                 user_prompt=message,
