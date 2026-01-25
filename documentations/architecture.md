@@ -609,3 +609,155 @@ agent:
 - **Database**: SQLite database file (can be backed up)
 - **Vector DB**: ChromaDB directory (optional, can be backed up)
 
+---
+
+## Multi-Agent Orchestrator Architecture (Optional)
+
+The system supports an optional multi-agent orchestrator pattern that separates routing logic from domain expertise. This pattern is disabled by default and can be enabled via configuration.
+
+### Overview
+
+When orchestrator mode is enabled, the system uses:
+- **Dispatcher (Concierge)**: Routes requests to appropriate specialists
+- **Specialist Agents**: Domain-specific agents that handle their area of expertise
+
+### Agent Hierarchy
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Dispatcher                                  │
+│                        (Concierge Agent)                            │
+│  - Categorizes incoming requests                                     │
+│  - Delegates to appropriate specialist                               │
+│  - Handles chitchat directly                                         │
+│  - Never answers how-to questions                                    │
+└────────────────────────────┬────────────────────────────────────────┘
+                             │
+      ┌──────────────────────┼──────────────────────┐
+      │                      │                      │
+      ▼                      ▼                      ▼
+┌───────────────┐    ┌───────────────┐    ┌───────────────┐
+│   Notion      │    │   Calendar    │    │   Memory      │
+│  Specialist   │    │  Specialist   │    │  Specialist   │
+│               │    │               │    │               │
+│ Tools:        │    │ Tools:        │    │ Tools:        │
+│ - notion_     │    │ - calendar_   │    │ - get_conv_   │
+│   search      │    │   reader      │    │   history     │
+│               │    │ - calendar_   │    │               │
+│               │    │   writer      │    │               │
+└───────────────┘    └───────────────┘    └───────────────┘
+```
+
+### Agent-as-a-Tool Pattern
+
+The Dispatcher uses the Agent-as-a-Tool pattern to delegate to specialists:
+
+1. **Structured Hand-off**: Dispatcher calls specialist via Pydantic model (e.g., `NotionQuery`)
+2. **Encapsulated Tools**: Specialist's internal tools are hidden from Dispatcher
+3. **Context Passing**: Message history passed to specialist, but specialist's tool calls hidden from Dispatcher
+
+```python
+# Example: NotionQuery model for structured delegation
+class NotionQuery(BaseModel):
+    search_term: str
+    date_range: Optional[str] = None
+    read_full_content: bool = False
+```
+
+### Data Ingestion Partitioning
+
+Each agent sees only the data relevant to its domain:
+
+| Agent | Data Sources |
+|-------|-------------|
+| **Dispatcher** | System Config + Agent Registry (agent descriptions) |
+| **Notion Specialist** | info.json + ChromaDB (vector store) |
+| **Calendar Specialist** | DateTime + GCal API |
+| **Memory Specialist** | SQLite messages table |
+
+### Configuration
+
+Enable orchestrator mode in `config.yaml`:
+
+```yaml
+agent:
+  orchestrator:
+    enable: true  # Enable multi-agent orchestrator
+    # dispatcher_model: "gpt-4"  # Optional: override LLM for dispatcher
+```
+
+### Module Structure
+
+```
+src/agent/
+├── base.py              # BaseAgent, AgentContext, AgentResult
+├── registry.py          # AgentRegistry for sub-agent lookup
+├── dispatcher.py        # DispatcherAgent (Concierge)
+├── specialists/
+│   ├── base_specialist.py     # BaseSpecialistAgent
+│   ├── notion_specialist.py   # NotionSpecialist
+│   ├── calendar_specialist.py # CalendarSpecialist
+│   ├── memory_specialist.py   # MemorySpecialist
+│   └── chitchat_specialist.py # ChitchatSpecialist
+└── specialist_prompts/
+    ├── dispatcher_prompt.py   # Dispatcher system prompt
+    ├── notion_prompt.py       # Notion specialist prompt
+    ├── calendar_prompt.py     # Calendar specialist prompt
+    ├── memory_prompt.py       # Memory specialist prompt
+    └── chitchat_prompt.py     # Chitchat prompt
+
+src/tools/agent_tools/
+├── base_agent_tool.py     # BaseAgentTool for Agent-as-Tool pattern
+├── notion_agent_tool.py   # NotionAgentTool + NotionQuery
+├── calendar_agent_tool.py # CalendarAgentTool + CalendarQuery
+└── memory_agent_tool.py   # MemoryAgentTool + MemoryQuery
+```
+
+### Debug Features
+
+When debugging is enabled, the system generates:
+
+1. **Per-Response Logs**: Detailed log file for each Telegram response
+2. **SVG Data Flow Diagrams**: Visual sequence diagrams showing request flow
+
+```yaml
+agent:
+  debug:
+    enable_response_logging: true
+    enable_svg_diagrams: true
+    response_log_dir: "logs/responses"
+    svg_diagram_dir: "logs/diagrams"
+```
+
+Output files:
+- `logs/responses/response_{chat_id}_{timestamp}.log`
+- `logs/diagrams/response_{chat_id}_{timestamp}.svg`
+
+### Debug Module Structure
+
+```
+src/debug/
+├── trace.py           # TraceEvent, RequestTrace for request tracing
+├── svg_generator.py   # SVGDataFlowGenerator for diagram generation
+└── response_logger.py # TelegramResponseLogger for per-response logs
+```
+
+### Routing Rules
+
+The Dispatcher routes based on message content:
+
+| Pattern | Destination |
+|---------|-------------|
+| Notion/notes/documents queries | `delegate_to_notion_specialist` |
+| Calendar/schedule queries | `delegate_to_calendar_specialist` |
+| "What did I say..." queries | `delegate_to_memory_specialist` |
+| Greetings ("hi", "thanks") | Direct response (no delegation) |
+
+### Adding New Specialists
+
+1. Create specialist class inheriting from `BaseSpecialistAgent`
+2. Create system prompt in `specialist_prompts/`
+3. Create Agent-as-Tool wrapper with Pydantic request model
+4. Register in `main.py` initialization
+5. Add to Dispatcher's routing rules in prompt
+

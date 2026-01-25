@@ -118,3 +118,35 @@ agent:
 
     # Maximum recent references to pull for LLM summarization
     message_limit: 20
+
+  # Multi-agent Orchestrator Configuration
+  # When enabled, uses a Dispatcher (Concierge) to route requests to Specialist agents
+  orchestrator:
+    # Enable multi-agent orchestrator pattern
+    # When false (default), uses legacy single-agent mode
+    enable: false
+
+    # Optional: Override LLM model for dispatcher
+    # If not set, uses the main LLM configuration
+    # dispatcher_model: "gpt-4"
+
+    # Optional: Override LLM models per specialist
+    # specialist_models:
+    #   notion_specialist: "gpt-4"
+    #   calendar_specialist: "gpt-3.5-turbo"
+
+  # Debug and Logging Configuration
+  debug:
+    # Create separate log file for each Telegram response
+    # Useful for debugging agent behavior
+    enable_response_logging: false
+
+    # Generate SVG data flow diagrams for each response
+    # Shows how requests flow through the multi-agent system
+    enable_svg_diagrams: false
+
+    # Directory for per-response log files
+    response_log_dir: "data/response_logs/responses"
+
+    # Directory for SVG diagram files
+    svg_diagram_dir: "data/response_logs/diagrams"

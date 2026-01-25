@@ -1,6 +1,6 @@
 """Pydantic models for configuration validation."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
@@ -206,6 +206,44 @@ class ContextConfig(BaseModel):
     )
 
 
+class OrchestratorConfig(BaseModel):
+    """Multi-agent orchestrator configuration."""
+
+    enable: bool = Field(
+        default=False,
+        description="Enable multi-agent orchestrator pattern (dispatcher + specialists)"
+    )
+    dispatcher_model: Optional[str] = Field(
+        default=None,
+        description="Override LLM model for dispatcher (uses main LLM if not set)"
+    )
+    specialist_models: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Override LLM models per specialist (e.g., {'notion': 'gpt-4'})"
+    )
+
+
+class DebugConfig(BaseModel):
+    """Debug and logging configuration."""
+
+    enable_response_logging: bool = Field(
+        default=False,
+        description="Create separate log file for each Telegram response"
+    )
+    enable_svg_diagrams: bool = Field(
+        default=False,
+        description="Generate SVG data flow diagrams for each response"
+    )
+    response_log_dir: str = Field(
+        default="logs/responses",
+        description="Directory for per-response log files"
+    )
+    svg_diagram_dir: str = Field(
+        default="logs/diagrams",
+        description="Directory for SVG diagram files"
+    )
+
+
 class AgentConfig(BaseModel):
     """Agent configuration."""
 
@@ -220,6 +258,14 @@ class AgentConfig(BaseModel):
     context: ContextConfig = Field(
         default_factory=ContextConfig,
         description="Context manager configuration"
+    )
+    orchestrator: OrchestratorConfig = Field(
+        default_factory=OrchestratorConfig,
+        description="Multi-agent orchestrator configuration"
+    )
+    debug: DebugConfig = Field(
+        default_factory=DebugConfig,
+        description="Debug and logging configuration"
     )
 
 
