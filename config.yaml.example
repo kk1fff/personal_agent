@@ -124,7 +124,7 @@ agent:
   orchestrator:
     # Enable multi-agent orchestrator pattern
     # When false (default), uses legacy single-agent mode
-    enable: false
+    enable: true
 
     # Optional: Override LLM model for dispatcher
     # If not set, uses the main LLM configuration

@@ -79,10 +79,20 @@ class DispatcherAgent(BaseAgent):
         tool_name = schema["name"]
         tool_description = schema["description"]
 
+        # Check if tool has a request_model (typical for BaseAgentTool)
+        # This allows pydantic_ai to generate the correct schema from the model
+        request_model = getattr(tool, "request_model", None)
+
         async def tool_wrapper(ctx: RunContext[ConversationContext], **kwargs) -> str:
             """Tool wrapper for PydanticAI integration."""
             context = ctx.deps
-            result = await tool.execute(context, **kwargs)
+            
+            # Handle both kwargs and request object (if request_model was used)
+            if request_model and "request" in kwargs:
+                # If pydantic-ai passed the model instance
+                params = kwargs["request"].model_dump()
+            else:
+                params = kwargs
 
             # Trace tool execution if trace is available
             trace = context.metadata.get("trace")
@@ -94,10 +104,10 @@ class DispatcherAgent(BaseAgent):
                     source="dispatcher",
                     target=tool_name,
                     content_summary=f"Calling specialist tool: {tool_name}",
-                    metadata=kwargs
+                    metadata=params
                 )
 
-            result = await tool.execute(context, **kwargs)
+            result = await tool.execute(context, **params)
             duration = (time.time() - start_time) * 1000
 
             # Update trace with result
@@ -118,7 +128,23 @@ class DispatcherAgent(BaseAgent):
 
         tool_wrapper.__name__ = tool_name
         tool_wrapper.__doc__ = tool_description
-        self._pydantic_agent.tool(tool_wrapper)
+        
+        # If we have a request model, we need to adjust the signature for pydantic-ai
+        if request_model:
+            # We must modify the wrapper to look like:
+            # async def wrapper(ctx: RunContext, request: request_model) -> str
+            # This allows pydantic-ai to introspect the model and generate schema
+            
+            # We create a new function with the correct signature
+            async def typed_wrapper(ctx: RunContext[ConversationContext], request: request_model) -> str:
+                return await tool_wrapper(ctx, request=request)
+                
+            typed_wrapper.__name__ = tool_name
+            typed_wrapper.__doc__ = tool_description
+            self._pydantic_agent.tool(typed_wrapper)
+        else:
+            self._pydantic_agent.tool(tool_wrapper)
+            
         logger.debug(f"[dispatcher] Registered agent tool: {tool_name}")
 
     def get_system_prompt(self, context: AgentContext) -> str:
