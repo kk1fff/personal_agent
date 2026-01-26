@@ -172,6 +172,22 @@ class NotionIntelligenceEngine:
 
         try:
             json_data = self._extract_json(response.text)
+
+            # Handle case where LLM returns a list (common failure mode)
+            if isinstance(json_data, list):
+                if json_data and isinstance(json_data[0], str):
+                    # Assume it's a list of queries
+                    json_data = {
+                        "primary_queries": json_data,
+                        "expected_content_type": "general content",
+                        "reasoning": "inferred from list of queries",
+                    }
+                elif json_data and isinstance(json_data[0], dict):
+                    # Maybe it returned a list of strategies? Take the first one.
+                    json_data = json_data[0]
+                else:
+                    raise ValueError(f"Unexpected JSON structure: {type(json_data)}")
+
             return SearchStrategy(**json_data)
         except Exception as e:
             logger.warning(f"Failed to parse search strategy: {e}")
