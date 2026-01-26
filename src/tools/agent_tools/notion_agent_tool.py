@@ -14,9 +14,9 @@ class NotionQuery(BaseModel):
     and the Notion specialist agent.
     """
 
-    search_term: str = Field(
-        ...,
-        description="What to search for in Notion workspace"
+    search_term: Optional[str] = Field(
+        default=None,
+        description="What to search for in Notion workspace. If not provided, the specialist will infer it from context or list recent items."
     )
     date_range: Optional[str] = Field(
         default=None,
