@@ -135,6 +135,39 @@ agent:
     #   notion_specialist: "gpt-4"
     #   calendar_specialist: "gpt-3.5-turbo"
 
+  # Specialist Agents Configuration
+  specialists:
+    # Notion Specialist Intelligence Configuration
+    notion:
+      intelligence:
+        # Master switch for intelligence features
+        # When enabled, uses multi-step LLM processing for better search and answers
+        enabled: true
+
+        # Step 1: Query Expansion
+        # LLM analyzes the question and generates multiple search queries
+        # Set to false to use the question directly as the search query
+        query_expansion: true
+
+        # Step 3: LLM Re-ranking
+        # LLM scores each result by actual relevance to the question
+        # Set to false to use vector similarity scores only
+        llm_reranking: true
+
+        # Step 5: Answer Synthesis
+        # LLM synthesizes a comprehensive answer with citations
+        # Set to false to return raw page content instead
+        answer_synthesis: true
+
+        # Maximum queries to generate during query expansion (1-5)
+        max_queries: 3
+
+        # Number of results to consider for LLM re-ranking (1-20)
+        rerank_top_n: 10
+
+        # Number of top pages to fetch full content for synthesis (1-10)
+        fetch_top_n: 3
+
   # Debug and Logging Configuration
   debug:
     # Create separate log file for each Telegram response

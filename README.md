@@ -179,6 +179,51 @@ When enabled, the system uses a hierarchical agent structure:
 
 When `enable: false` (default), the system uses the legacy single-agent mode.
 
+### Notion Intelligence Features (Optional)
+
+The Notion Specialist includes an optional intelligence engine that uses multi-step LLM processing to provide better search results and synthesized answers.
+
+```yaml
+agent:
+  specialists:
+    notion:
+      intelligence:
+        enabled: true              # Master switch (default: true)
+        query_expansion: true      # LLM generates multiple search queries
+        llm_reranking: true        # LLM re-ranks results by relevance
+        answer_synthesis: true     # LLM synthesizes answer with citations
+        max_queries: 3             # Max queries in expansion (1-5)
+        rerank_top_n: 10           # Results to consider for re-ranking (1-20)
+        fetch_top_n: 3             # Pages to fetch full content (1-10)
+```
+
+**How It Works:**
+
+When intelligence is enabled, Notion queries go through a 5-step pipeline:
+
+1. **Intent Analysis**: LLM analyzes the user's question and generates optimal search queries (query expansion)
+2. **Execute Searches**: Multiple semantic searches are run against the vector index
+3. **Re-rank Results**: LLM scores each result by actual relevance to the question (not just vector similarity)
+4. **Fetch Content**: Full page content is fetched for the top-ranked pages
+5. **Synthesize Answer**: LLM generates a comprehensive answer with citations and confidence score
+
+**Benefits:**
+
+- **Better Search**: Query expansion finds content that exact keyword matching would miss
+- **Higher Relevance**: LLM re-ranking surfaces truly relevant pages over false positives
+- **Synthesized Answers**: Get direct answers instead of just page links
+- **Citations**: Answers include references to source pages
+- **Confidence Scoring**: Know how confident the system is in its answer
+
+**Performance Considerations:**
+
+The full pipeline makes 3 LLM calls per query. You can disable individual steps to reduce latency/cost:
+
+- `query_expansion: false` - Uses the question directly as the search query
+- `llm_reranking: false` - Uses vector similarity scores instead of LLM scoring
+- `answer_synthesis: false` - Returns raw content instead of synthesized answer
+- `enabled: false` - Disables all intelligence, falls back to simple vector search
+
 ### Debug Features (Optional)
 
 Enable detailed logging and visualization of agent interactions:

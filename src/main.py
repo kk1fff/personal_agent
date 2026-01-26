@@ -484,14 +484,31 @@ async def main():
 
         # Notion Specialist
         if "notion_search" in all_tools:
+            # Get intelligence config from app config
+            from .agent.specialists.notion_models import NotionIntelligenceConfig as IntelConfig
+            notion_intel_config = None
+            if hasattr(config, 'agent') and hasattr(config.agent, 'specialists'):
+                schema_config = config.agent.specialists.notion.intelligence
+                notion_intel_config = IntelConfig(
+                    enabled=schema_config.enabled,
+                    query_expansion=schema_config.query_expansion,
+                    llm_reranking=schema_config.llm_reranking,
+                    answer_synthesis=schema_config.answer_synthesis,
+                    max_queries=schema_config.max_queries,
+                    rerank_top_n=schema_config.rerank_top_n,
+                    fetch_top_n=schema_config.fetch_top_n,
+                )
+
             notion_specialist = NotionSpecialist(
                 llm=llm,
                 notion_search_tool=all_tools["notion_search"],
                 notion_context=tool_context,
+                intelligence_config=notion_intel_config,
             )
             agent_registry.register(notion_specialist)
             specialists.append(notion_specialist)
-            logger.info("    - Notion Specialist registered")
+            logger.info("    - Notion Specialist registered (intelligence=%s)",
+                       notion_intel_config.enabled if notion_intel_config else True)
 
         # Calendar Specialist
         calendar_reader = all_tools.get("calendar_reader")
