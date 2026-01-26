@@ -362,6 +362,43 @@ class TestAnswerSynthesis:
         # Should have default confidence
         assert answer.confidence == 0.7
 
+    @pytest.mark.asyncio
+    async def test_synthesize_answer_with_flexible_metadata(self, intelligence_engine, mock_llm):
+        """Test synthesis when LLM returns non-standard metadata formats."""
+        results = [
+            RankedResult(
+                page_id="p1", title="Notes", path="Work",
+                summary="Notes", vector_score=0.5, relevance_score=0.9,
+                relevance_reasoning="Relevant", content="Content here"
+            ),
+        ]
+
+        # LLM returns gaps as list and suggestions as dicts
+        mock_llm.generate.return_value = LLMResponse(
+            text="""Here is the answer.
+
+---METADATA---
+{
+    "confidence": 0.8,
+    "citations": [],
+    "gaps_identified": [{"detail": "Missing budget info"}, {"detail": "No timeline"}],
+    "follow_up_suggestions": [
+        {"question": "What is the budget?"},
+        {"question": "When is the deadline?"}
+    ]
+}"""
+        )
+
+        answer = await intelligence_engine._synthesize_answer("Question?", results)
+
+        assert answer.confidence == 0.8
+        # gaps_identified should be converted to string
+        assert "Missing budget info" in answer.gaps_identified
+        assert "No timeline" in answer.gaps_identified
+        # follow_up_suggestions should extract question strings
+        assert "What is the budget?" in answer.follow_up_suggestions
+        assert "When is the deadline?" in answer.follow_up_suggestions
+
 
 class TestFullPipeline:
     """Tests for the full processing pipeline."""
@@ -477,6 +514,40 @@ class TestJSONExtraction:
         """Test that invalid JSON raises ValueError."""
         with pytest.raises(ValueError):
             intelligence_engine._extract_json("not json at all")
+
+    def test_extract_json_from_code_block_with_newlines(self, intelligence_engine):
+        """Test extraction of JSON from code block with newlines."""
+        text = '''Here is the result:
+```json
+{
+    "primary_queries": [
+        "query1",
+        "query2"
+    ],
+    "reasoning": "test"
+}
+```'''
+        result = intelligence_engine._extract_json(text)
+        assert result["primary_queries"] == ["query1", "query2"]
+        assert result["reasoning"] == "test"
+
+    def test_extract_json_nested_braces(self, intelligence_engine):
+        """Test extraction of JSON with nested objects."""
+        text = '{"outer": {"inner": {"deep": "value"}}}'
+        result = intelligence_engine._extract_json(text)
+        assert result["outer"]["inner"]["deep"] == "value"
+
+    def test_find_json_object_helper(self, intelligence_engine):
+        """Test the _find_json_object helper method."""
+        text = '{"key": "value with { brace } inside"} extra'
+        result = intelligence_engine._find_json_object(text)
+        assert result == '{"key": "value with { brace } inside"}'
+
+    def test_find_json_array_helper(self, intelligence_engine):
+        """Test the _find_json_array helper method."""
+        text = '["a", "b", ["nested"]] extra'
+        result = intelligence_engine._find_json_array(text)
+        assert result == '["a", "b", ["nested"]]'
 
 
 class TestConfigOptions:

@@ -570,12 +570,39 @@ class NotionIntelligenceEngine:
                     )
                 )
 
+        # Handle gaps_identified - convert list to string if needed
+        gaps = metadata.get("gaps_identified")
+        if isinstance(gaps, list):
+            # LLM returned a list of gaps - convert to string
+            gap_strings = []
+            for g in gaps:
+                if isinstance(g, dict):
+                    gap_strings.append(g.get("detail", str(g)))
+                else:
+                    gap_strings.append(str(g))
+            gaps = "; ".join(gap_strings) if gap_strings else None
+        elif gaps is not None and not isinstance(gaps, str):
+            gaps = str(gaps)
+
+        # Handle follow_up_suggestions - extract strings from dicts if needed
+        suggestions = metadata.get("follow_up_suggestions", [])
+        normalized_suggestions = []
+        for s in suggestions:
+            if isinstance(s, str):
+                normalized_suggestions.append(s)
+            elif isinstance(s, dict):
+                # LLM returned dicts with 'question' key
+                question = s.get("question") or s.get("suggestion") or str(s)
+                normalized_suggestions.append(question)
+            else:
+                normalized_suggestions.append(str(s))
+
         return SynthesizedAnswer(
             answer=answer_text,
             confidence=metadata.get("confidence", 0.7),
             citations=citations,
-            gaps_identified=metadata.get("gaps_identified"),
-            follow_up_suggestions=metadata.get("follow_up_suggestions", []),
+            gaps_identified=gaps,
+            follow_up_suggestions=normalized_suggestions,
             pages_analyzed=pages_analyzed,
         )
 
@@ -584,7 +611,7 @@ class NotionIntelligenceEngine:
 
         Handles various formats:
         - Pure JSON
-        - JSON in code blocks
+        - JSON in code blocks (```json ... ``` or ``` ... ```)
         - JSON with surrounding text
 
         Args:
@@ -607,15 +634,48 @@ class NotionIntelligenceEngine:
         except json.JSONDecodeError:
             pass
 
-        # Try to find JSON in code blocks
-        code_block_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
-        if code_block_match:
+        # Try to find JSON in code blocks - multiple patterns
+        # Pattern 1: ```json ... ``` with newlines
+        code_block_patterns = [
+            r"```json\s*\n([\s\S]*?)\n\s*```",  # ```json\n...\n```
+            r"```json\s*([\s\S]*?)\s*```",       # ```json ... ```
+            r"```\s*\n([\s\S]*?)\n\s*```",       # ```\n...\n```
+            r"```([\s\S]*?)```",                  # ``` ... ```
+        ]
+
+        for pattern in code_block_patterns:
+            code_block_match = re.search(pattern, text)
+            if code_block_match:
+                try:
+                    content = code_block_match.group(1).strip()
+                    return json.loads(content)
+                except json.JSONDecodeError:
+                    continue
+
+        # Try to find first complete JSON object by matching braces
+        # Find the first { and try to parse from there
+        brace_start = text.find("{")
+        bracket_start = text.find("[")
+
+        if brace_start != -1:
+            # Try to find the matching closing brace
             try:
-                return json.loads(code_block_match.group(1))
+                candidate = self._find_json_object(text[brace_start:])
+                if candidate:
+                    return json.loads(candidate)
             except json.JSONDecodeError:
                 pass
 
-        # Try to find JSON object or array
+        if bracket_start != -1:
+            # Try to find the matching closing bracket
+            try:
+                candidate = self._find_json_array(text[bracket_start:])
+                if candidate:
+                    return json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
+
+        # Last resort: try regex for JSON object or array
         json_match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
         if json_match:
             try:
@@ -624,3 +684,61 @@ class NotionIntelligenceEngine:
                 pass
 
         raise ValueError(f"No valid JSON found in: {text[:200]}...")
+
+    def _find_json_object(self, text: str) -> Optional[str]:
+        """Find a complete JSON object by matching braces."""
+        if not text.startswith("{"):
+            return None
+
+        depth = 0
+        in_string = False
+        escape_next = False
+
+        for i, char in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+            if char == "\\":
+                escape_next = True
+                continue
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    return text[:i+1]
+        return None
+
+    def _find_json_array(self, text: str) -> Optional[str]:
+        """Find a complete JSON array by matching brackets."""
+        if not text.startswith("["):
+            return None
+
+        depth = 0
+        in_string = False
+        escape_next = False
+
+        for i, char in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+            if char == "\\":
+                escape_next = True
+                continue
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if in_string:
+                continue
+            if char == "[":
+                depth += 1
+            elif char == "]":
+                depth -= 1
+                if depth == 0:
+                    return text[:i+1]
+        return None
