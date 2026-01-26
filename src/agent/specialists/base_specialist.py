@@ -90,11 +90,21 @@ class BaseSpecialistAgent(BaseAgent):
         schema = tool.get_schema()
         tool_name = schema["name"]
         tool_description = schema["description"]
+        
+        # Check if tool has a request_model for better schema generation
+        request_model = getattr(tool, "request_model", None)
 
         async def tool_wrapper(ctx: RunContext[ConversationContext], **kwargs) -> str:
             """Tool wrapper for PydanticAI integration."""
             context = ctx.deps
-            result = await tool.execute(context, **kwargs)
+            
+            # Handle both kwargs and request object
+            if request_model and "request" in kwargs:
+                params = kwargs["request"].model_dump()
+            else:
+                params = kwargs
+                
+            result = await tool.execute(context, **params)
 
             if result.success:
                 return f"Result from tool '{tool_name}':\n" + (
@@ -107,7 +117,18 @@ class BaseSpecialistAgent(BaseAgent):
 
         tool_wrapper.__name__ = tool_name
         tool_wrapper.__doc__ = tool_description
-        self._pydantic_agent.tool(tool_wrapper)
+        
+        # Apply typed wrapper if request_model is available
+        if request_model:
+            async def typed_wrapper(ctx: RunContext[ConversationContext], request: request_model) -> str:
+                return await tool_wrapper(ctx, request=request)
+            
+            typed_wrapper.__name__ = tool_name
+            typed_wrapper.__doc__ = tool_description
+            self._pydantic_agent.tool(typed_wrapper)
+        else:
+            self._pydantic_agent.tool(tool_wrapper)
+            
         logger.debug(f"[{self.name}] Registered tool: {tool_name}")
 
     async def process(
@@ -133,6 +154,10 @@ class BaseSpecialistAgent(BaseAgent):
 
             # Update model's system prompt
             self._pydantic_agent.model._system_prompt = system_prompt
+            
+            # Set trace on the model adapter if available
+            if context.metadata.get("trace"):
+                 self._pydantic_agent.model.set_trace(context.metadata.get("trace"))
 
             # Convert AgentContext to ConversationContext for tool compatibility
             conversation_context = ConversationContext(
