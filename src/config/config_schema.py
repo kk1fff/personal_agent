@@ -223,6 +223,63 @@ class OrchestratorConfig(BaseModel):
     )
 
 
+class NotionIntelligenceConfig(BaseModel):
+    """Configuration for Notion specialist intelligence features."""
+
+    enabled: bool = Field(
+        default=True,
+        description="Master switch for intelligence features"
+    )
+    query_expansion: bool = Field(
+        default=True,
+        description="Enable LLM-based query expansion (generates multiple search queries)"
+    )
+    llm_reranking: bool = Field(
+        default=True,
+        description="Enable LLM-based result re-ranking (scores results by relevance)"
+    )
+    answer_synthesis: bool = Field(
+        default=True,
+        description="Enable LLM-based answer synthesis (generates answer with citations)"
+    )
+    max_queries: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        description="Maximum queries in query expansion"
+    )
+    rerank_top_n: int = Field(
+        default=10,
+        ge=1,
+        le=20,
+        description="Number of results to consider for re-ranking"
+    )
+    fetch_top_n: int = Field(
+        default=3,
+        ge=1,
+        le=10,
+        description="Number of top pages to fetch full content"
+    )
+
+
+class NotionSpecialistConfig(BaseModel):
+    """Configuration for Notion specialist agent."""
+
+    intelligence: NotionIntelligenceConfig = Field(
+        default_factory=NotionIntelligenceConfig,
+        description="Intelligence features configuration"
+    )
+
+
+class SpecialistsConfig(BaseModel):
+    """Configuration for specialist agents."""
+
+    notion: NotionSpecialistConfig = Field(
+        default_factory=NotionSpecialistConfig,
+        description="Notion specialist configuration"
+    )
+
+
 class DebugConfig(BaseModel):
     """Debug and logging configuration."""
 
@@ -262,6 +319,10 @@ class AgentConfig(BaseModel):
     orchestrator: OrchestratorConfig = Field(
         default_factory=OrchestratorConfig,
         description="Multi-agent orchestrator configuration"
+    )
+    specialists: SpecialistsConfig = Field(
+        default_factory=SpecialistsConfig,
+        description="Specialist agents configuration"
     )
     debug: DebugConfig = Field(
         default_factory=DebugConfig,
