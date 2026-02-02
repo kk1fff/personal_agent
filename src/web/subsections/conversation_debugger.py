@@ -316,6 +316,7 @@ class ConversationDebuggerSubsection(BaseSubsection):
 .flow-canvas {
     flex: 1;
     padding: 2rem;
+    padding-bottom: 5rem; /* Extra space for fixed controls */
     overflow-y: auto;
 }
 
@@ -455,6 +456,13 @@ class ConversationDebuggerSubsection(BaseSubsection):
     gap: 1rem;
     padding: 1rem;
     border-top: 1px solid var(--border-color, #e0e0e0);
+    position: fixed;
+    bottom: 0;
+    left: 350px; /* Width of conversation-selector + gap */
+    right: 0;
+    background: white;
+    z-index: 100;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .step-slider {

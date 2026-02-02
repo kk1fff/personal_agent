@@ -16,6 +16,14 @@ class ToolCall:
     name: str
     arguments: Dict[str, Any]
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "arguments": self.arguments,
+        }
+
 
 @dataclass
 class LLMResponse:
@@ -74,7 +82,6 @@ class BaseLLM(ABC):
         # Record request if trace is set
         if self._trace:
             from ..debug.trace import TraceEventType
-            prompt_preview = prompt[:200] + "..." if len(prompt) > 200 else prompt
             self._trace.add_event(
                 TraceEventType.LLM_REQUEST,
                 source=self._source_name,
@@ -82,9 +89,9 @@ class BaseLLM(ABC):
                 content_summary=f"LLM request (prompt length: {len(prompt)})",
                 metadata={
                     "model": self.get_model_name(),
-                    "prompt_preview": prompt_preview,
-                    "has_system_prompt": bool(system_prompt),
-                    "tool_count": len(tools) if tools else 0,
+                    "prompt": prompt,
+                    "system_prompt": system_prompt if system_prompt else "",
+                    "tools": tools,
                 }
             )
 
@@ -94,18 +101,14 @@ class BaseLLM(ABC):
         # Record response if trace is set
         if self._trace:
             from ..debug.trace import TraceEventType
-            response_preview = (response.text or "")[:200]
-            if len(response.text or "") > 200:
-                response_preview += "..."
             self._trace.add_event(
                 TraceEventType.LLM_RESPONSE,
                 source=self.get_model_name(),
                 target=self._source_name,
                 content_summary=f"LLM response (length: {len(response.text or '')})",
                 metadata={
-                    "has_tool_calls": bool(response.tool_calls),
-                    "tool_call_count": len(response.tool_calls),
-                    "response_preview": response_preview,
+                    "tool_calls": [tc.to_dict() for tc in response.tool_calls],
+                    "response": response.text,
                 }
             )
 
