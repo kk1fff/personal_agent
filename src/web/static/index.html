@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Agent Debug UI</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body x-data="debugApp()" x-init="init()">
+
+    <!-- Sticky Subsection Selector -->
+    <header class="selector-bar">
+        <div class="selector-left">
+            <span class="logo">Debug UI</span>
+        </div>
+        <div class="selector-container">
+            <!-- Visible tabs -->
+            <nav class="tabs" x-ref="tabs">
+                <template x-for="section in visibleSections" :key="section.name">
+                    <button
+                        class="tab"
+                        :class="{ 'active': activeSection === section.name }"
+                        @click="selectSection(section.name)"
+                    >
+                        <span x-show="section.icon" x-text="section.icon" class="tab-icon"></span>
+                        <span x-text="section.display_name"></span>
+                    </button>
+                </template>
+            </nav>
+
+            <!-- Overflow dropdown -->
+            <div class="overflow-menu" x-show="overflowSections.length > 0">
+                <button
+                    class="overflow-trigger"
+                    @click="overflowOpen = !overflowOpen"
+                    :class="{ 'has-active': overflowHasActive }"
+                >
+                    <span>...</span>
+                </button>
+                <div
+                    class="overflow-dropdown"
+                    x-show="overflowOpen"
+                    x-transition
+                    @click.outside="overflowOpen = false"
+                >
+                    <template x-for="section in overflowSections" :key="section.name">
+                        <button
+                            class="overflow-item"
+                            :class="{ 'active': activeSection === section.name }"
+                            @click="selectSection(section.name); overflowOpen = false"
+                        >
+                            <span x-show="section.icon" x-text="section.icon" class="tab-icon"></span>
+                            <span x-text="section.display_name"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection status -->
+        <div class="connection-status" :class="wsStatus">
+            <span class="status-dot"></span>
+            <span x-text="wsStatus"></span>
+        </div>
+    </header>
+
+    <!-- Subsection Content Area -->
+    <main class="content-area">
+        <div x-show="loading" class="loading">Loading...</div>
+        <div x-show="!loading && !activeSection" class="no-section">
+            <p>No subsections available</p>
+        </div>
+        <div x-show="!loading && activeSection" class="subsection-content" x-html="currentTemplate"></div>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

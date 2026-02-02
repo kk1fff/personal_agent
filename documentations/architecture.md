@@ -842,6 +842,104 @@ src/debug/
 └── response_logger.py # TelegramResponseLogger for per-response logs
 ```
 
+### Web Debug UI (`src/web/`)
+
+The system includes an optional browser-based debug interface with live updates via WebSockets.
+
+#### Purpose
+
+- Real-time monitoring of application logs
+- View current configuration (read-only, with masked secrets)
+- Modular architecture for adding custom debug subsections
+- Live updates without page refresh
+
+#### Module Structure
+
+```
+src/web/
+├── __init__.py              # Module exports
+├── server.py                # FastAPI app, WebSocket handling, WebDebugServer class
+├── registry.py              # SubsectionRegistry + @subsection decorator
+├── base.py                  # BaseSubsection abstract class
+├── websocket_manager.py     # ConnectionManager for broadcasting updates
+├── static/
+│   ├── index.html           # Main page with Alpine.js
+│   ├── styles.css           # Sticky header, tabs, overflow dropdown
+│   └── app.js               # WebSocket client, section management
+└── subsections/
+    ├── __init__.py          # Auto-imports for registration
+    ├── log_viewer.py        # Live log streaming subsection
+    └── config_viewer.py     # Configuration viewer subsection
+```
+
+#### Subsection Registration Pattern
+
+New subsections can be added using the `@subsection` decorator:
+
+```python
+from src.web import BaseSubsection, subsection
+
+@subsection
+class MySubsection(BaseSubsection):
+    def __init__(self):
+        super().__init__(
+            name="my-section",      # URL identifier
+            display_name="My Section",  # UI display name
+            priority=10,            # Lower = appears first in tab bar
+            icon=""                 # Optional emoji icon
+        )
+
+    async def get_initial_data(self) -> dict:
+        """Return initial data for the subsection."""
+        return {"items": []}
+
+    async def get_html_template(self) -> str:
+        """Return Alpine.js-compatible HTML template."""
+        return '<div x-data>Content here</div>'
+
+    async def handle_action(self, action: str, data: dict) -> dict:
+        """Handle actions from the frontend (optional)."""
+        return {"success": True}
+```
+
+#### WebSocket Live Update Architecture
+
+```
+┌─────────────────┐     WebSocket      ┌─────────────────┐
+│   Browser       │◄──────────────────►│  WebDebugServer │
+│   (Alpine.js)   │                    │   (FastAPI)     │
+└─────────────────┘                    └────────┬────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │ ConnectionManager   │
+                                    │ - Subscriptions     │
+                                    │ - Broadcast         │
+                                    └─────────────────────┘
+```
+
+**Message Types:**
+- `subscribe`: Client subscribes to a subsection's updates
+- `unsubscribe`: Client unsubscribes from updates
+- `action`: Client sends action to subsection
+- `update`: Server broadcasts data update to subscribers
+- `action_result`: Server returns action result
+
+#### Configuration
+
+```yaml
+agent:
+  debug:
+    enable_web_ui: true       # Enable web debug interface
+    web_host: "127.0.0.1"     # Host (use 0.0.0.0 for external access)
+    web_port: 8765            # Port (1024-65535)
+```
+
+#### Built-in Subsections
+
+1. **Live Logs**: Streams application logs in real-time with level filtering
+2. **Configuration**: Read-only view of current config with masked secrets
+
 ### Routing Rules
 
 The Dispatcher routes based on message content:

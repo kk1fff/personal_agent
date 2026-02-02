@@ -464,6 +464,24 @@ async def main():
         if debug_config.enable_svg_diagrams:
             logger.info(f"  SVG diagrams: {debug_config.svg_diagram_dir}")
 
+    # Initialize web debug server if enabled
+    web_server = None
+    if debug_config.enable_web_ui:
+        logger.info("Initializing web debug UI")
+        from .web import WebDebugServer, get_registry
+        from .web.subsections.config_viewer import set_config
+
+        # Set config for the config viewer subsection
+        set_config(config)
+
+        web_server = WebDebugServer(
+            host=debug_config.web_host,
+            port=debug_config.web_port,
+            registry=get_registry(),
+        )
+        logger.info("✓ Web debug UI ready")
+        logger.info(f"  URL: http://{debug_config.web_host}:{debug_config.web_port}")
+
     # Initialize agent (orchestrator or legacy mode)
     agent_config = config.agent
     orchestrator_config = agent_config.orchestrator
@@ -619,9 +637,15 @@ async def main():
         logger.info(f"  Tools: {len(registered_tools)} registered")
         if response_logger:
             logger.info("  Debug Logging: Enabled")
+        if web_server:
+            logger.info(f"  Debug Web UI: {web_server.get_url()}")
         logger.info("")
         logger.info("Press Ctrl+C to stop")
         logger.info("=" * 60)
+
+        # Start web debug server if enabled
+        if web_server:
+            asyncio.create_task(web_server.start())
 
         # Keep running
         while True:
@@ -633,6 +657,10 @@ async def main():
         logger.info("Shutdown initiated")
         logger.info("=" * 60)
     finally:
+        if web_server:
+            logger.info("Stopping web debug server...")
+            await web_server.stop()
+            logger.info("✓ Web debug server stopped")
         logger.info("Stopping Telegram client...")
         await telegram_client.stop()
         logger.info("✓ Telegram client stopped")
