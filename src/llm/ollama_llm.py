@@ -32,6 +32,7 @@ class OllamaLLM(BaseLLM):
             max_tokens: Maximum tokens to generate
             context_window: Context window size
         """
+        super().__init__()
         self.model = model
         self.base_url = base_url
         self.temperature = temperature
@@ -41,7 +42,7 @@ class OllamaLLM(BaseLLM):
         # Set base URL for ollama client
         ollama.Client(host=base_url)
 
-    async def generate(
+    async def _generate_impl(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,

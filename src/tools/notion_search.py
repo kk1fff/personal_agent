@@ -1,13 +1,17 @@
 """Notion Search tool - searches index and fetches page content."""
 
 import logging
-from typing import Any, Dict, List, Optional
+import time
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ..context.models import ConversationContext
 from ..memory.embeddings import EmbeddingGenerator
 from ..memory.vector_store import VectorStore
 from ..notion.client import NotionClient
 from .base import BaseTool, ToolResult
+
+if TYPE_CHECKING:
+    from ..debug.trace import RequestTrace
 
 
 class NotionSearchTool(BaseTool):
@@ -45,6 +49,11 @@ class NotionSearchTool(BaseTool):
         self.embedding_generator = embedding_generator
         self.default_results = default_results
         self.logger = logging.getLogger(__name__)
+        self._trace: Optional["RequestTrace"] = None
+
+    def set_trace(self, trace: Optional["RequestTrace"]):
+        """Set the request trace for search operations."""
+        self._trace = trace
 
     async def execute(
         self, context: ConversationContext, **kwargs
@@ -153,6 +162,23 @@ class NotionSearchTool(BaseTool):
         Returns:
             List of matching pages with metadata
         """
+        start_time = time.time()
+
+        # Record search request if trace is set
+        if self._trace:
+            from ..debug.trace import TraceEventType
+            query_preview = query[:50] + "..." if len(query) > 50 else query
+            self._trace.add_event(
+                TraceEventType.VECTOR_SEARCH,
+                source="notion_search",
+                target="vector_store",
+                content_summary=f"Vector search: '{query_preview}'",
+                metadata={
+                    "query": query,
+                    "max_results": max_results,
+                }
+            )
+
         # Generate embedding for query
         query_embedding = self.embedding_generator.generate_embedding(query)
 
@@ -161,6 +187,33 @@ class NotionSearchTool(BaseTool):
             query_embedding=query_embedding,
             n_results=max_results,
         )
+
+        duration_ms = (time.time() - start_time) * 1000
+
+        # Record search results if trace is set
+        if self._trace:
+            from ..debug.trace import TraceEventType
+            # Prepare result summary for trace (limit to first 5)
+            result_summary = [
+                {
+                    "page_id": r.get("metadata", {}).get("page_id", ""),
+                    "title": r.get("metadata", {}).get("title", "Untitled"),
+                    "score": r.get("distance", 0.0),
+                }
+                for r in results[:5]
+            ]
+            self._trace.add_event(
+                TraceEventType.VECTOR_SEARCH,
+                source="vector_store",
+                target="notion_search",
+                content_summary=f"Found {len(results)} results",
+                duration_ms=duration_ms,
+                metadata={
+                    "query": query,
+                    "result_count": len(results),
+                    "results": result_summary,
+                }
+            )
 
         return results
 

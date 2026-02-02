@@ -539,6 +539,10 @@ The Web UI follows a modular, event-driven architecture using Alpine.js on the f
    - Environment-specific settings
    - Easy credential management
 
+6. **Debug & Observability**
+   - **LLM Communication Logging**: ALL LLM request/response interactions MUST be logged to the trace system. This includes direct calls from any component (specialists, intelligence engines). Trace events: `LLM_REQUEST` (before call), `LLM_RESPONSE` (after call). Metadata includes: model name, prompt preview, tool count, response preview.
+   - **Vector Database Search Logging**: ALL vector DB searches MUST be logged to the trace system. Trace event type: `VECTOR_SEARCH`. Request metadata: query text, max_results. Response metadata: result count, top results (page_id, title, score).
+
 ## High-Level Dependencies
 
 ### Core Dependencies
@@ -880,6 +884,16 @@ src/debug/
 ├── svg_generator.py   # SVGDataFlowGenerator for diagram generation
 └── response_logger.py # TelegramResponseLogger for per-response logs (text + JSON + SVG)
 ```
+
+**Trace Event Types:**
+- `REQUEST`: Initial request received
+- `RESPONSE`: Final response sent
+- `TOOL_CALL`: Tool invocation with parameters and results
+- `DELEGATION`: Agent-to-agent handoffs
+- `LLM_REQUEST`: LLM request (captured at BaseLLM level for all calls)
+- `LLM_RESPONSE`: LLM response with metadata
+- `VECTOR_SEARCH`: Vector database search with query and results
+- `ERROR`: Error events
 
 **JSON Logging**: When response logging is enabled, each conversation creates two files:
 - `.log` file: Human-readable text log with detailed trace events

@@ -34,6 +34,7 @@ class GeminiLLM(BaseLLM):
             max_tokens: Maximum tokens to generate
             safety_settings: Optional safety settings
         """
+        super().__init__()
         self.api_key = api_key
         self.model_name = model
         self.temperature = temperature
@@ -43,7 +44,7 @@ class GeminiLLM(BaseLLM):
         # Initialize client with API key
         self.client = genai.Client(api_key=api_key)
 
-    async def generate(
+    async def _generate_impl(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,

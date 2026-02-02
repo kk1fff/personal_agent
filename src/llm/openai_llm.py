@@ -30,6 +30,7 @@ class OpenAILLM(BaseLLM):
             max_tokens: Maximum tokens to generate
             organization_id: Optional organization ID
         """
+        super().__init__()
         self.api_key = api_key
         self.model = model
         self.temperature = temperature
@@ -41,7 +42,7 @@ class OpenAILLM(BaseLLM):
             organization=organization_id,
         )
 
-    async def generate(
+    async def _generate_impl(
         self,
         prompt: str,
         system_prompt: Optional[str] = None,
