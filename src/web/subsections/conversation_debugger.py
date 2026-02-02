@@ -171,9 +171,26 @@ function conversationDebugger() {
         currentStep: 0,
 
         init() {
-            // Watch for new conversations in data updates
-            this.$watch('data.conversations', (newData) => {
-                // Auto-update when conversations change (could be from websocket)
+            // Listen for action results (trace loading)
+            window.addEventListener('subsection-action-result', (e) => {
+                 // Check if it's a trace load result
+                 if (e.detail && e.detail.data && e.detail.data.trace_id) {
+                     this.handleTraceLoaded(e.detail.data);
+                 }
+            });
+            
+            // Listen for live updates
+            window.addEventListener('conversation-update', (e) => {
+                const update = e.detail;
+                if (this.selectedTrace && update.trace_id === this.selectedTrace.trace_id) {
+                    // Append event to current trace
+                    this.selectedTrace.events.push(update.event);
+                    
+                    // Auto-advance if we were at the end
+                    if (this.currentStep === this.totalSteps - 2) {
+                        this.currentStep++;
+                    }
+                }
             });
         },
 

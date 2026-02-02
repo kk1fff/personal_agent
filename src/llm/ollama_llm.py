@@ -102,7 +102,9 @@ class OllamaLLM(BaseLLM):
             if tools:
                 logger.debug(f"Ollama request tools: {api_params.get('tools')}")
 
-            response = ollama.chat(**api_params)
+            # Run blocking ollama.chat in a thread
+            import asyncio
+            response = await asyncio.to_thread(lambda: ollama.chat(**api_params))
 
             # Log raw response
             logger.debug(f"Ollama raw response: {response}")

@@ -154,6 +154,17 @@ function debugApp() {
                         if (!this.data.conversations.find(c => c.trace_id === newConv.trace_id)) {
                             this.data.conversations = [newConv, ...this.data.conversations];
                         }
+                    } else if (message.data.conversation_update && this.activeSection === 'conversations') {
+                        const update = message.data.conversation_update;
+                        // Update conversation list item logic
+                        const conv = this.data.conversations.find(c => c.trace_id === update.trace_id);
+                        if (conv) {
+                            conv.event_count = (conv.event_count || 0) + 1;
+                            // Update timestamp to now to show activity? 
+                            // Maybe not, keep start time.
+                        }
+                        // Dispatch event for subsection component to handle details
+                        window.dispatchEvent(new CustomEvent('conversation-update', { detail: update }));
                     } else {
                         // Deep merge for nested objects, replace for arrays
                         for (const [key, value] of Object.entries(message.data)) {

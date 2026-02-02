@@ -41,9 +41,13 @@ class TelegramResponseLogger:
         self.enable_svg = enable_svg
         self.svg_generator = SVGDataFlowGenerator()
         self.on_new_trace_callback = on_new_trace_callback
+        self.on_trace_event_callback = None  # Callback for real-time event updates
+        self.on_trace_start_callback = None  # Callback for new trace start
 
         # Ensure directories exist
         self._ensure_directories()
+        
+
 
     def _ensure_directories(self) -> None:
         """Create log directories if they don't exist."""
@@ -100,7 +104,7 @@ class TelegramResponseLogger:
             # Notify callback if set
             if self.on_new_trace_callback:
                 import asyncio
-                trace_data = self._build_trace_data(
+                trace_data = self.build_trace_data(
                     trace, chat_id, user_message, bot_response, user_id, str(json_path)
                 )
                 try:
@@ -212,14 +216,14 @@ class TelegramResponseLogger:
         """
         import json
         
-        data = self._build_trace_data(
+        data = self.build_trace_data(
             trace, chat_id, user_message, bot_response, user_id, str(path)
         )
         
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-    def _build_trace_data(
+    def build_trace_data(
         self,
         trace: RequestTrace,
         chat_id: int,

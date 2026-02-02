@@ -154,13 +154,30 @@ async def process_message(
 
         # Create request trace for debugging
         if response_logger:
-            trace = RequestTrace()
+            trace = RequestTrace(on_update=response_logger.on_trace_event_callback)
             trace.add_event(
                 TraceEventType.REQUEST,
                 source="telegram",
                 target="dispatcher" if isinstance(agent, DispatcherAgent) else "agent",
                 content_summary=extracted.message_text[:100],
             )
+            # Broadcast new conversation start immediately if callback available
+            if response_logger.on_trace_start_callback:
+                import asyncio
+                # Build initial trace data
+                start_data = response_logger.build_trace_data(
+                    trace=trace,
+                    chat_id=extracted.chat_id,
+                    user_message=extracted.message_text,
+                    bot_response="", # Not available yet
+                    user_id=extracted.user_id,
+                    file_path="" # Not saved yet
+                )
+                try:
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(response_logger.on_trace_start_callback(start_data))
+                except Exception as e:
+                    logger.warning(f"Failed to broadcast trace start: {e}")
 
         # Build message with reply context if applicable (Story 2: Reply Tagging)
         user_message = extracted.message_text
@@ -488,11 +505,29 @@ async def main():
         # Connect response logger to web server for real-time updates
         if response_logger:
             async def broadcast_trace(trace_data: dict):
-                """Broadcast new trace to web UI."""
+                """Broadcast completed trace to web UI."""
+                await web_server.broadcast_update("conversations", {
+                    "completed_conversation": trace_data
+                })
+            
+            async def broadcast_event(trace, event):
+                """Broadcast new event to web UI."""
+                await web_server.broadcast_update("conversations", {
+                    "conversation_update": {
+                        "trace_id": trace.trace_id,
+                        "event": event.to_dict()
+                    }
+                })
+            
+            async def broadcast_start(trace_data: dict):
+                """Broadcast new conversation start."""
                 await web_server.broadcast_update("conversations", {
                     "new_conversation": trace_data
                 })
+
             response_logger.on_new_trace_callback = broadcast_trace
+            response_logger.on_trace_event_callback = broadcast_event
+            response_logger.on_trace_start_callback = broadcast_start
             logger.info("  Connected response logger to web UI")
         
         logger.info("✓ Web debug UI ready")

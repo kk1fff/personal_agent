@@ -53,6 +53,7 @@ class RequestTrace:
     start_time: datetime = field(default_factory=datetime.now)
     end_time: Optional[datetime] = None
     events: List[TraceEvent] = field(default_factory=list)
+    on_update: Optional[Any] = field(default=None, repr=False)
 
     def add_event(
         self,
@@ -87,6 +88,26 @@ class RequestTrace:
             metadata=metadata or {},
         )
         self.events.append(event)
+        
+        # Notify callback if set
+        if self.on_update:
+            try:
+                # If callback is async, schedule it
+                if hasattr(self.on_update, '__call__'):
+                    import asyncio
+                    import inspect
+                    if inspect.iscoroutinefunction(self.on_update):
+                        # Use current loop if available, strictly fire-and-forget
+                        try:
+                            loop = asyncio.get_running_loop()
+                            loop.create_task(self.on_update(self, event))
+                        except RuntimeError:
+                             pass # No loop running
+                    else:
+                        self.on_update(self, event)
+            except Exception:
+                pass # Don't let logging fail the request
+
         return event
 
     def complete(self) -> None:
