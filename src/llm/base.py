@@ -16,6 +16,14 @@ class ToolCall:
     name: str
     arguments: Dict[str, Any]
 
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "arguments": self.arguments,
+        }
+
 
 @dataclass
 class LLMResponse:
@@ -99,8 +107,8 @@ class BaseLLM(ABC):
                 target=self._source_name,
                 content_summary=f"LLM response (length: {len(response.text or '')})",
                 metadata={
-                    "tool_call_count": response.tool_calls,
-                    "response_preview": response.text,
+                    "tool_calls": [tc.to_dict() for tc in response.tool_calls],
+                    "response": response.text,
                 }
             )
 

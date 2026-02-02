@@ -130,7 +130,7 @@ class PydanticAIModelAdapter(Model):
                 content_summary=f"Sending request to LLM (Length: {len(user_prompt)})",
                 metadata={
                     "model": self.model_name,
-                    "tool_count": tools,
+                    "tools": tools,
                     "system_prompt": system_prompt,
                     "user_prompt": user_prompt
                 }
@@ -149,7 +149,7 @@ class PydanticAIModelAdapter(Model):
                 target=self.agent_name,
                 content_summary=f"Received response from LLM (Length: {len(response.text or '')})",
                 metadata={
-                    "tool_calls": response.tool_calls,
+                    "tool_calls": [tc.to_dict() for tc in response.tool_calls],
                     "response": response.text
                 }
             )
