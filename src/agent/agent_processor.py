@@ -21,16 +21,19 @@ from ..debug import RequestTrace, TraceEventType
 class PydanticAIModelAdapter(Model):
     """Adapter to use our BaseLLM with pydantic_ai."""
 
-    def __init__(self, llm: BaseLLM, system_prompt: Optional[str] = None):
+    def __init__(self, llm: BaseLLM, system_prompt: Optional[str] = None, agent_name: str = "agent"):
         """
         Initialize adapter.
 
         Args:
             llm: BaseLLM instance
+            llm: BaseLLM instance
             system_prompt: System prompt for the model
+            agent_name: Name of the agent for tracing (default: "agent")
         """
         self.llm = llm
         self._system_prompt = system_prompt or ""
+        self.agent_name = agent_name
         self._trace: Optional[RequestTrace] = None
         super().__init__()
 
@@ -116,7 +119,7 @@ class PydanticAIModelAdapter(Model):
         if self._trace:
             self._trace.add_event(
                 TraceEventType.LLM_REQUEST,
-                source="agent",
+                source=self.agent_name,
                 target=self.model_name,
                 content_summary=f"Sending request to LLM (Length: {len(user_prompt)})",
                 metadata={
@@ -136,7 +139,7 @@ class PydanticAIModelAdapter(Model):
             self._trace.add_event(
                 TraceEventType.LLM_RESPONSE,
                 source=self.model_name,
-                target="agent",
+                target=self.agent_name,
                 content_summary=f"Received response from LLM (Length: {len(response.text or '')})",
                 metadata={
                     "has_tools": bool(response.tool_calls),
@@ -210,6 +213,7 @@ class AgentProcessor:
         llm: BaseLLM,
         tools: List[BaseTool],
         system_prompt: str = SYSTEM_PROMPT,
+        agent_name: str = "agent",
     ):
         """
         Initialize agent processor.
@@ -218,13 +222,15 @@ class AgentProcessor:
             llm: LLM instance
             tools: List of available tools
             system_prompt: System prompt for the agent
+            agent_name: Name of the agent for tracing
         """
         self.llm = llm
         self.system_prompt = system_prompt
+        self.agent_name = agent_name
         self.tools = {tool.get_name(): tool for tool in tools}
 
         # Create pydantic_ai agent with dependency injection
-        model = PydanticAIModelAdapter(llm, system_prompt=system_prompt)
+        model = PydanticAIModelAdapter(llm, system_prompt=system_prompt, agent_name=agent_name)
         self.agent = Agent(
             model=model,
             deps_type=ConversationContext,
@@ -261,7 +267,7 @@ class AgentProcessor:
                 start_time = __import__("time").time()
                 trace.add_event(
                     TraceEventType.TOOL_CALL,
-                    source="agent",
+                    source=self.agent_name,
                     target=tool_name,
                     content_summary=f"Calling tool: {tool_name}",
                     metadata=kwargs
@@ -276,7 +282,7 @@ class AgentProcessor:
                 trace.add_event(
                     TraceEventType.TOOL_CALL,
                     source=tool_name,
-                    target="agent",
+                    target=self.agent_name,
                     content_summary=f"Tool result: {'Success' if result.success else 'Error'}",
                     duration_ms=duration,
                     metadata={"success": result.success, "result": result.message or str(result.data)}

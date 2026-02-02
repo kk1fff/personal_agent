@@ -59,7 +59,11 @@ class DispatcherAgent(BaseAgent):
         """Set up the pydantic_ai Agent with agent tools."""
         from .agent_processor import PydanticAIModelAdapter
 
-        model = PydanticAIModelAdapter(self.llm, system_prompt=self._base_system_prompt)
+        model = PydanticAIModelAdapter(
+            self.llm, 
+            system_prompt=self._base_system_prompt,
+            agent_name=self.name
+        )
         self._pydantic_agent = Agent(
             model=model,
             deps_type=ConversationContext,
@@ -101,7 +105,7 @@ class DispatcherAgent(BaseAgent):
             if trace:
                 trace.add_event(
                     TraceEventType.TOOL_CALL,
-                    source="dispatcher",
+                    source=self.name,
                     target=tool_name,
                     content_summary=f"Calling specialist tool: {tool_name}",
                     metadata=params
@@ -115,10 +119,14 @@ class DispatcherAgent(BaseAgent):
                 trace.add_event(
                     TraceEventType.TOOL_CALL,
                     source=tool_name,
-                    target="dispatcher",
+                    target=self.name,
                     content_summary=f"Tool result: {'Success' if result.success else 'Error'}",
                     duration_ms=duration,
-                    metadata={"success": result.success}
+                    metadata={
+                        "success": result.success,
+                        "result_content": result.message or str(result.data),
+                        "structured_data": result.structured_data
+                    }
                 )
 
             if result.success:

@@ -139,9 +139,33 @@ class ConversationDebuggerSubsection(BaseSubsection):
                         </div>
                         <div class="flow-content" x-text="currentEvent?.content_summary"></div>
                         <div x-show="currentEvent?.metadata && Object.keys(currentEvent.metadata).length > 0" class="flow-metadata">
-                            <details>
+                            <details open>
                                 <summary>Details</summary>
-                                <pre x-text="JSON.stringify(currentEvent?.metadata, null, 2)"></pre>
+                                <div class="metadata-table-wrapper">
+                                    <table class="metadata-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Key</th>
+                                                <th>Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="[key, value] in Object.entries(currentEvent.metadata)" :key="key">
+                                                <tr>
+                                                    <td class="meta-key" x-text="key"></td>
+                                                    <td class="meta-value">
+                                                        <template x-if="typeof value === 'object' && value !== null">
+                                                            <pre x-text="JSON.stringify(value, null, 2)"></pre>
+                                                        </template>
+                                                        <template x-if="typeof value !== 'object' || value === null">
+                                                            <div x-text="value" class="text-value"></div>
+                                                        </template>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </details>
                         </div>
                     </div>
@@ -372,12 +396,57 @@ class ConversationDebuggerSubsection(BaseSubsection):
 }
 
 .flow-metadata pre {
-    margin: 0.5rem 0 0 0;
-    padding: 0.5rem;
-    background: white;
-    border-radius: 4px;
+    margin: 0;
+    padding: 0.25rem;
+    background: transparent;
+    border: none;
     overflow-x: auto;
     font-size: 0.85rem;
+}
+
+.metadata-table-wrapper {
+    margin-top: 0.5rem;
+    background: white;
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.metadata-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+.metadata-table th,
+.metadata-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--border-color, #eee);
+    text-align: left;
+    vertical-align: top;
+}
+
+.metadata-table th {
+    background: var(--bg-secondary, #f5f5f5);
+    font-weight: 600;
+    color: var(--text-secondary, #666);
+    width: 30%;
+}
+
+.meta-key {
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--accent-dark, #0056b3);
+}
+
+.meta-value {
+    font-family: monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.text-value {
+    white-space: pre-wrap;
 }
 
 .analyzer-controls {
