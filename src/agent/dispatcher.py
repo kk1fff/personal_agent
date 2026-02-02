@@ -125,7 +125,7 @@ class DispatcherAgent(BaseAgent):
                     metadata={
                         "success": result.success,
                         "result_content": result.message or str(result.data),
-                        "structured_data": result.structured_data
+                        "structured_data": result.data
                     }
                 )
 
