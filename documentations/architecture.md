@@ -839,8 +839,14 @@ Output files:
 src/debug/
 ├── trace.py           # TraceEvent, RequestTrace for request tracing
 ├── svg_generator.py   # SVGDataFlowGenerator for diagram generation
-└── response_logger.py # TelegramResponseLogger for per-response logs
+└── response_logger.py # TelegramResponseLogger for per-response logs (text + JSON + SVG)
 ```
+
+**JSON Logging**: When response logging is enabled, each conversation creates two files:
+- `.log` file: Human-readable text log with detailed trace events
+- `.json` file: Machine-readable JSON trace for conversation debugger and future analysis
+
+The JSON format includes full trace data, events, timing, and metadata for replay in the web UI.
 
 ### Web Debug UI (`src/web/`)
 
@@ -867,10 +873,22 @@ src/web/
 │   ├── styles.css           # Sticky header, tabs, overflow dropdown
 │   └── app.js               # WebSocket client, section management
 └── subsections/
-    ├── __init__.py          # Auto-imports for registration
-    ├── log_viewer.py        # Live log streaming subsection
-    └── config_viewer.py     # Configuration viewer subsection
+    ├── __init__.py            # Auto-imports for registration
+    ├── log_viewer.py          # Live log streaming subsection
+    ├── config_viewer.py       # Configuration viewer subsection
+    └── conversation_debugger.py # Conversation trace visualization subsection
 ```
+
+#### Built-in Subsections
+
+1. **Live Logs** (`log_viewer.py`): Real-time log streaming with filtering
+2. **Configuration** (`config_viewer.py`): Read-only config viewer (masks secrets)
+3. **Conversation Debugger** (`conversation_debugger.py`): Step-by-step conversation trace visualization
+   - Lists all conversation traces (current and previous runs)
+   - Visual data flow between components (Telegram → Dispatcher → Agents → LLM → Tools)
+   - Step-by-step navigation through events
+   - Real-time updates via WebSocket when new conversations occur
+   - Persistent JSON storage in `logs/responses/`
 
 #### Subsection Registration Pattern
 
