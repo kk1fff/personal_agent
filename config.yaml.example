@@ -183,3 +183,15 @@ agent:
 
     # Directory for SVG diagram files
     svg_diagram_dir: "data/response_logs/diagrams"
+
+    # Web Debug UI Configuration
+    # Browser-based debug interface with live updates
+    enable_web_ui: false
+
+    # Host to bind web debug UI
+    # Use "127.0.0.1" for local-only access (default)
+    # Use "0.0.0.0" for external access (be careful in production!)
+    web_host: "127.0.0.1"
+
+    # Port for web debug UI (1024-65535)
+    web_port: 8765

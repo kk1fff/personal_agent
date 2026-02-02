@@ -299,6 +299,20 @@ class DebugConfig(BaseModel):
         default="logs/diagrams",
         description="Directory for SVG diagram files"
     )
+    enable_web_ui: bool = Field(
+        default=False,
+        description="Enable web-based debug UI with live updates"
+    )
+    web_host: str = Field(
+        default="127.0.0.1",
+        description="Host to bind web debug UI (use 0.0.0.0 for external access)"
+    )
+    web_port: int = Field(
+        default=8765,
+        ge=1024,
+        le=65535,
+        description="Port for web debug UI"
+    )
 
 
 class AgentConfig(BaseModel):

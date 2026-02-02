@@ -255,6 +255,70 @@ When enabled, generates visual sequence diagrams showing how requests flow throu
 
 Files are saved to `logs/diagrams/response_{chat_id}_{timestamp}.svg`.
 
+### Web Debug UI (Optional)
+
+A browser-based debug interface with live updates for real-time monitoring:
+
+```yaml
+agent:
+  debug:
+    enable_web_ui: true       # Enable web debug interface
+    web_host: "127.0.0.1"     # Host (use 0.0.0.0 for external access)
+    web_port: 8765            # Port (1024-65535)
+```
+
+**How It Works:**
+
+When enabled, a web server starts alongside the Telegram bot. The URL is displayed in the terminal after "SYSTEM READY":
+
+```
+============================================================
+✓ SYSTEM READY - Bot is now listening for messages
+============================================================
+  LLM: gemma3:7b
+  Telegram Mode: poll
+  Agent Mode: Orchestrator
+  Tools: 5 registered
+  Debug Web UI: http://127.0.0.1:8765
+```
+
+**Built-in Subsections:**
+
+1. **Live Logs**: Real-time log streaming with level filtering (DEBUG, INFO, WARNING, ERROR)
+2. **Configuration**: Read-only view of current configuration (secrets are masked)
+
+**Features:**
+
+- Sticky tab bar at the top for switching between subsections
+- Responsive design with overflow dropdown for many subsections
+- WebSocket connection for live updates (auto-reconnects)
+- Modular architecture - add custom subsections without modifying core code
+
+**Adding Custom Subsections:**
+
+Create a new file in `src/web/subsections/` and use the `@subsection` decorator:
+
+```python
+from src.web import BaseSubsection, subsection
+
+@subsection
+class MyDebugSubsection(BaseSubsection):
+    def __init__(self):
+        super().__init__(
+            name="my-debug",
+            display_name="My Debug Panel",
+            priority=30,  # Lower = appears first
+        )
+
+    async def get_initial_data(self) -> dict:
+        return {"status": "ready"}
+
+    async def get_html_template(self) -> str:
+        return '<div>Status: <span x-text="data.status"></span></div>'
+```
+
+Then import it in `src/web/subsections/__init__.py`.
+
 ### @Mention Filtering (Optional)
 
 Control when the bot responds to messages in group chats:
