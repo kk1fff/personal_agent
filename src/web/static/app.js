@@ -33,6 +33,13 @@ function debugApp() {
             this.connectWebSocket();
             this.handleResize();
             window.addEventListener('resize', () => this.handleResize());
+
+            // Listen for actions from subsections
+            window.addEventListener('send-action', (e) => {
+                if (e.detail && e.detail.action) {
+                    this.sendAction(e.detail.action, e.detail.data);
+                }
+            });
         },
 
         // Methods
@@ -212,6 +219,101 @@ function debugApp() {
                     data: payload
                 }));
             }
+        }
+    };
+}
+
+// Global component for Conversation Debugger Subsection
+function conversationDebugger() {
+    return {
+        selectedTraceId: null,
+        selectedTrace: null,
+        currentStep: 0,
+        cleanupFuncs: [],
+
+        init() {
+            // Helper to bind and cleanup listeners
+            const bindListener = (event, handler) => {
+                const boundHandler = handler.bind(this);
+                window.addEventListener(event, boundHandler);
+                this.cleanupFuncs.push(() => window.removeEventListener(event, boundHandler));
+            };
+
+            bindListener('subsection-action-result', (e) => {
+                const result = e.detail?.result;
+                if (result && result.trace_id) {
+                    this.handleTraceLoaded(result);
+                }
+            });
+
+            bindListener('conversation-update', (e) => {
+                const update = e.detail;
+                if (this.selectedTrace && update.trace_id === this.selectedTrace.trace_id) {
+                    this.selectedTrace.events.push(update.event);
+                    if (this.currentStep === this.totalSteps - 2) {
+                        this.currentStep++;
+                    }
+                }
+            });
+        },
+
+        destroy() {
+            this.cleanupFuncs.forEach(fn => fn());
+            this.cleanupFuncs = [];
+        },
+
+        get totalSteps() {
+            return this.selectedTrace?.events?.length || 0;
+        },
+
+        get currentEvent() {
+            if (!this.selectedTrace || this.currentStep >= this.totalSteps) {
+                return null;
+            }
+            return this.selectedTrace.events[this.currentStep];
+        },
+
+        async selectConversation(traceId) {
+            this.selectedTraceId = traceId;
+            this.currentStep = 0;
+            const conv = this.data.conversations.find(c => c.trace_id === traceId);
+            if (!conv) return;
+
+            try {
+                // Dispatch event to parent debugApp
+                window.dispatchEvent(new CustomEvent('send-action', {
+                    detail: {
+                        action: 'load_trace',
+                        data: { trace_id: traceId }
+                    }
+                }));
+            } catch (e) {
+                console.error('Failed to load trace:', e);
+            }
+        },
+
+        handleTraceLoaded(traceData) {
+            if (traceData && traceData.trace_id === this.selectedTraceId) {
+                this.selectedTrace = traceData;
+            }
+        },
+
+        nextStep() {
+            if (this.currentStep < this.totalSteps - 1) {
+                this.currentStep++;
+            }
+        },
+
+        prevStep() {
+            if (this.currentStep > 0) {
+                this.currentStep--;
+            }
+        },
+
+        formatTimestamp(ts) {
+            if (!ts) return '';
+            const date = new Date(ts);
+            return date.toLocaleString();
         }
     };
 }
