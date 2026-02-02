@@ -147,20 +147,31 @@ function debugApp() {
             if (message.type === 'update' && message.subsection === this.activeSection) {
                 // Merge update into current data
                 if (message.data) {
-                    // Deep merge for nested objects, replace for arrays
-                    for (const [key, value] of Object.entries(message.data)) {
-                        if (Array.isArray(value)) {
-                            this.data[key] = value;
-                        } else if (typeof value === 'object' && value !== null) {
-                            this.data[key] = { ...this.data[key], ...value };
-                        } else {
-                            this.data[key] = value;
+                    // Special handling for new conversations
+                    if (message.data.new_conversation && this.activeSection === 'conversations') {
+                        const newConv = message.data.new_conversation;
+                        // Prepend new conversation (newest first)
+                        if (!this.data.conversations.find(c => c.trace_id === newConv.trace_id)) {
+                            this.data.conversations = [newConv, ...this.data.conversations];
+                        }
+                    } else {
+                        // Deep merge for nested objects, replace for arrays
+                        for (const [key, value] of Object.entries(message.data)) {
+                            if (Array.isArray(value)) {
+                                this.data[key] = value;
+                            } else if (typeof value === 'object' && value !== null) {
+                                this.data[key] = { ...this.data[key], ...value };
+                            } else {
+                                this.data[key] = value;
+                            }
                         }
                     }
                 }
             } else if (message.type === 'action_result') {
-                // Handle action results if needed
+                // Handle action results - pass to subsection handler if available
                 console.log('Action result:', message);
+                // Trigger custom event for subsection to handle
+                window.dispatchEvent(new CustomEvent('subsection-action-result', { detail: message }));
             }
         },
 

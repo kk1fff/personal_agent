@@ -286,6 +286,7 @@ When enabled, a web server starts alongside the Telegram bot. The URL is display
 
 1. **Live Logs**: Real-time log streaming with level filtering (DEBUG, INFO, WARNING, ERROR)
 2. **Configuration**: Read-only view of current configuration (secrets are masked)
+3. **Conversation Debugger**: Step-by-step visualization of conversation data flows (see below)
 
 **Features:**
 
@@ -293,6 +294,18 @@ When enabled, a web server starts alongside the Telegram bot. The URL is display
 - Responsive design with overflow dropdown for many subsections
 - WebSocket connection for live updates (auto-reconnects)
 - Modular architecture - add custom subsections without modifying core code
+
+**Conversation Debugger:**
+
+The Conversation Debugger provides step-by-step visualization of message flows:
+
+- **Conversation Selector** (Left): Lists all conversations sorted by timestamp with chat ID, message preview, step count, and duration
+- **Conversation Analyzer** (Right): Visual data flow between Telegram, Dispatcher, Agents, LLM, Tools, and Database
+- **Step Navigation**: Use slider or prev/next buttons to step through each event
+- **Persistent Storage**: Conversations stored as JSON in `logs/responses/` and available across restarts
+- **Real-time Updates**: New conversations appear automatically via WebSocket
+
+Use it to debug agent behavior, visualize multi-agent delegations, and analyze timing/performance.
 
 **Adding Custom Subsections:**
 

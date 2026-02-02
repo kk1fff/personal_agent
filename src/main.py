@@ -454,10 +454,15 @@ async def main():
     debug_config = config.agent.debug
     if debug_config.enable_response_logging:
         logger.info("Initializing debug response logger")
+        
+        # Define callback for web UI updates (will be set if web UI is enabled)
+        trace_callback = None
+        
         response_logger = TelegramResponseLogger(
             log_dir=debug_config.response_log_dir,
             svg_dir=debug_config.svg_diagram_dir,
             enable_svg=debug_config.enable_svg_diagrams,
+            on_new_trace_callback=trace_callback,  # Will be updated if web UI enabled
         )
         logger.info("✓ Debug response logger ready")
         logger.info(f"  Response logs: {debug_config.response_log_dir}")
@@ -479,6 +484,17 @@ async def main():
             port=debug_config.web_port,
             registry=get_registry(),
         )
+        
+        # Connect response logger to web server for real-time updates
+        if response_logger:
+            async def broadcast_trace(trace_data: dict):
+                """Broadcast new trace to web UI."""
+                await web_server.broadcast_update("conversations", {
+                    "new_conversation": trace_data
+                })
+            response_logger.on_new_trace_callback = broadcast_trace
+            logger.info("  Connected response logger to web UI")
+        
         logger.info("✓ Web debug UI ready")
         logger.info(f"  URL: http://{debug_config.web_host}:{debug_config.web_port}")
 

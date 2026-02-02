@@ -25,6 +25,7 @@ class TelegramResponseLogger:
         log_dir: str = "logs/responses",
         svg_dir: str = "logs/diagrams",
         enable_svg: bool = True,
+        on_new_trace_callback=None,
     ):
         """Initialize response logger.
 
@@ -32,11 +33,14 @@ class TelegramResponseLogger:
             log_dir: Directory for response log files
             svg_dir: Directory for SVG diagram files
             enable_svg: Whether to generate SVG diagrams
+            on_new_trace_callback: Optional callback to notify when a new trace is logged.
+                                   Signature: async callable(trace_data: dict)
         """
         self.log_dir = Path(log_dir)
         self.svg_dir = Path(svg_dir)
         self.enable_svg = enable_svg
         self.svg_generator = SVGDataFlowGenerator()
+        self.on_new_trace_callback = on_new_trace_callback
 
         # Ensure directories exist
         self._ensure_directories()
@@ -80,12 +84,31 @@ class TelegramResponseLogger:
                 log_path, trace, chat_id, user_message, bot_response, user_id
             )
 
+            # Write JSON trace for conversation debugger
+            json_path = self.log_dir / f"{filename}.json"
+            self._write_json(
+                json_path, trace, chat_id, user_message, bot_response, user_id
+            )
+
             # Generate SVG diagram if enabled and there are events
             if self.enable_svg and trace.events:
                 svg_path = self.svg_dir / f"{filename}.svg"
                 self._write_svg(svg_path, trace)
 
             logger.debug(f"Response logged to {log_path}")
+
+            # Notify callback if set
+            if self.on_new_trace_callback:
+                import asyncio
+                trace_data = self._build_trace_data(
+                    trace, chat_id, user_message, bot_response, user_id, str(json_path)
+                )
+                try:
+                    # Schedule callback without blocking
+                    asyncio.create_task(self.on_new_trace_callback(trace_data))
+                except Exception as e:
+                    logger.warning(f"Failed to invoke trace callback: {e}")
+
             return str(log_path)
 
         except Exception as e:
@@ -167,6 +190,70 @@ class TelegramResponseLogger:
             f.write("=" * 70 + "\n")
             f.write("END OF LOG\n")
             f.write("=" * 70 + "\n")
+
+    def _write_json(
+        self,
+        path: Path,
+        trace: RequestTrace,
+        chat_id: int,
+        user_message: str,
+        bot_response: str,
+        user_id: Optional[int] = None,
+    ) -> None:
+        """Write JSON trace file for conversation debugger.
+
+        Args:
+            path: Path to write JSON file
+            trace: Request trace
+            chat_id: Telegram chat ID
+            user_message: User's message
+            bot_response: Bot's response
+            user_id: Optional user ID
+        """
+        import json
+        
+        data = self._build_trace_data(
+            trace, chat_id, user_message, bot_response, user_id, str(path)
+        )
+        
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _build_trace_data(
+        self,
+        trace: RequestTrace,
+        chat_id: int,
+        user_message: str,
+        bot_response: str,
+        user_id: Optional[int] = None,
+        file_path: str = "",
+    ) -> dict:
+        """Build trace data dictionary for JSON and callbacks.
+
+        Args:
+            trace: Request trace
+            chat_id: Telegram chat ID
+            user_message: User's message
+            bot_response: Bot's response
+            user_id: Optional user ID
+            file_path: Path to JSON file
+
+        Returns:
+            Dictionary with trace data
+        """
+        return {
+            "trace_id": trace.trace_id,
+            "chat_id": chat_id,
+            "user_id": user_id,
+            "timestamp": trace.start_time.isoformat(),
+            "end_time": trace.end_time.isoformat() if trace.end_time else None,
+            "duration_ms": trace.get_duration_ms(),
+            "user_message": user_message,
+            "bot_response": bot_response,
+            "file_path": file_path,
+            "events": [e.to_dict() for e in trace.events],
+        }
+
 
     def _write_svg(self, path: Path, trace: RequestTrace) -> None:
         """Generate and write SVG diagram.
