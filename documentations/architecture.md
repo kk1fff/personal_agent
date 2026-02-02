@@ -438,6 +438,45 @@ agent:
   - `logging.py`: Logging setup with verbosity levels
 - **Dependencies**: None (standard library)
 
+### 9. Web Debug UI (`src/web/`)
+- **Purpose**: Real-time visualization and debugging interface
+- **Key Components**:
+  - `server.py`: FastAPI server with WebSocket support
+  - `registry.py`: Registry for UI subsections (modules)
+  - `websocket_manager.py`: Manages real-time client connections
+  - `subsections/`: Pluggable UI modules (Conversation Debugger, Config Viewer)
+- **Dependencies**: `fastapi`, `uvicorn`, `websockets`
+
+#### Web Architecture
+
+The Web UI follows a modular, event-driven architecture using Alpine.js on the frontend and FastAPI/WebSockets on the backend.
+
+```
+┌─────────────┐      HTTP / WebSocket      ┌──────────────┐
+│  Frontend   │◄──────────────────────────►│   Backend    │
+│ (Alpine.js) │                            │  (FastAPI)   │
+└──────┬──────┘                            └──────┬───────┘
+       │                                          │
+       ▼                                          ▼
+┌─────────────┐                            ┌──────────────┐
+│  Subsections│                            │  Subsection  │
+│ Components  │                            │   Registry   │
+└─────────────┘                            └──────┬───────┘
+                                                  │
+                                       ┌──────────┴──────────┐
+                                       ▼                     ▼
+                               ┌──────────────┐      ┌──────────────┐
+                               │ Config Viewer│      │ Conversation │
+                               │ Subsection   │      │ Debugger     │
+                               └──────────────┘      └──────────────┘
+```
+
+**Key Features:**
+- **Subsection Registry**: Modular UI components registered via decorators
+- **Event-Driven**: Frontend components communicate via custom events (`send-action`)
+- **Real-Time Updates**: WebSocket broadcasts updates from backend to subscribed frontend components
+- **Alpine.js Components**: Lightweight, reactive frontend components embedded in HTML templates
+
 ## Requirements
 
 ### Functional Requirements
