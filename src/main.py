@@ -492,9 +492,20 @@ async def main():
         logger.info("Initializing web debug UI")
         from .web import WebDebugServer, get_registry
         from .web.subsections.config_viewer import set_config
+        
+        # Get registry
+        registry = get_registry()
 
         # Set config for the config viewer subsection
         set_config(config)
+        
+        # Configure conversation debugger with correct log path
+        conversation_debugger = registry.get("conversations")
+        if conversation_debugger:
+            from pathlib import Path
+            if debug_config.response_log_dir:
+                conversation_debugger.log_dir = Path(debug_config.response_log_dir)
+                logger.info(f"  Configured Conversation Debugger log dir: {debug_config.response_log_dir}")
 
         web_server = WebDebugServer(
             host=debug_config.web_host,
