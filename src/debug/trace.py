@@ -15,6 +15,7 @@ class TraceEventType(Enum):
     DELEGATION = "delegation"
     LLM_REQUEST = "llm_request"
     LLM_RESPONSE = "llm_response"
+    VECTOR_SEARCH = "vector_search"
     ERROR = "error"
 
 

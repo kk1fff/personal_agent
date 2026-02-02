@@ -305,6 +305,17 @@ The Conversation Debugger provides step-by-step visualization of message flows:
 - **Persistent Storage**: Conversations stored as JSON in `logs/responses/` and available across restarts
 - **Real-time Updates**: New conversations appear automatically via WebSocket
 
+**Event Types:**
+
+The following event types are captured and displayed in the debugger:
+
+- `LLM_REQUEST/LLM_RESPONSE`: All LLM interactions are captured at the BaseLLM level, ensuring every LLM call is traced regardless of which component makes the call
+- `VECTOR_SEARCH`: Vector database queries showing search terms and results (page IDs, titles, similarity scores)
+- `TOOL_CALL`: Tool invocations with parameters and results
+- `DELEGATION`: Agent-to-agent handoffs in the orchestrator pattern
+- `REQUEST/RESPONSE`: Initial request and final response events
+- `ERROR`: Error events with details
+
 Use it to debug agent behavior, visualize multi-agent delegations, and analyze timing/performance.
 
 **Adding Custom Subsections:**

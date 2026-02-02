@@ -38,8 +38,14 @@ class PydanticAIModelAdapter(Model):
         super().__init__()
 
     def set_trace(self, trace: Optional[RequestTrace]):
-        """Set the request trace for the current execution."""
+        """Set the request trace for the current execution.
+
+        Also propagates the trace to the underlying LLM for direct LLM calls.
+        """
         self._trace = trace
+        # Propagate trace to underlying LLM so direct calls are also traced
+        if hasattr(self.llm, 'set_trace'):
+            self.llm.set_trace(trace, source_name=self.agent_name)
 
     @property
     def system(self) -> str:

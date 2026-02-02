@@ -168,6 +168,10 @@ class NotionSpecialist(BaseSpecialistAgent):
             elif time_context and context_hint:
                 context_hint = f"{context_hint}. Time filter: {time_context}"
 
+            # Set trace on intelligence engine if available
+            if context.metadata.get("trace"):
+                self.intelligence_engine.set_trace(context.metadata.get("trace"))
+
             # Process with intelligence engine
             result = await self.intelligence_engine.process_query(
                 user_question=user_question,

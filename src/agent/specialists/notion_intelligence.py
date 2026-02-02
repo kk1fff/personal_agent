@@ -3,9 +3,12 @@
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ...llm.base import BaseLLM
+
+if TYPE_CHECKING:
+    from ...debug.trace import RequestTrace
 from ...tools.notion_search import NotionSearchTool
 from .notion_models import (
     Citation,
@@ -56,6 +59,21 @@ class NotionIntelligenceEngine:
         self.search_tool = notion_search_tool
         self.workspace_context = workspace_context or "No workspace summary available."
         self.config = config or NotionIntelligenceConfig()
+        self._trace: Optional["RequestTrace"] = None
+
+    def set_trace(self, trace: Optional["RequestTrace"]):
+        """Set trace for LLM and search operations.
+
+        Propagates the trace to both the LLM and search tool so all
+        operations are recorded.
+        """
+        self._trace = trace
+        # Propagate to LLM for direct LLM calls
+        if hasattr(self.llm, 'set_trace'):
+            self.llm.set_trace(trace, source_name="notion_intelligence")
+        # Propagate to search tool for vector searches
+        if hasattr(self.search_tool, 'set_trace'):
+            self.search_tool.set_trace(trace)
 
     async def process_query(
         self,
