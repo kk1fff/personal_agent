@@ -132,13 +132,35 @@ class ConversationDebuggerSubsection(BaseSubsection):
                             <span class="step-number" x-text="'Step ' + (currentStep + 1) + ' / ' + totalSteps"></span>
                             <span class="step-type" x-text="currentEvent?.event_type"></span>
                         </div>
-                        <div class="flow-arrow">
-                            <div class="flow-source" x-text="currentEvent?.source"></div>
-                            <div class="arrow">→</div>
-                            <div class="flow-target" x-text="currentEvent?.target"></div>
+
+                        <!-- Diagram controls -->
+                        <div class="diagram-controls">
+                            <label class="view-all-toggle">
+                                <input type="checkbox" x-model="viewAll"> View All
+                            </label>
                         </div>
+
+                        <!-- Interactive SVG diagram -->
+                        <div class="diagram-container" x-ref="diagramContainer"
+                             @wheel.prevent="handleWheel($event)"
+                             @mousedown="handleMouseDown($event)"
+                             @mousemove="handleMouseMove($event)"
+                             @mouseup="handleMouseUp()"
+                             @mouseleave="handleMouseUp()">
+                            <svg x-ref="diagramSvg" class="flow-diagram"
+                                 xmlns="http://www.w3.org/2000/svg"
+                                 width="200" height="146">
+                                <defs>
+                                    <marker id="arrow-active" markerWidth="12" markerHeight="8" refX="11" refY="4" orient="auto" markerUnits="strokeWidth">
+                                        <path d="M0,0 L12,4 L0,8 L3,4 Z" class="arrow-marker-active"/>
+                                    </marker>
+                                </defs>
+                                <g x-ref="diagramGroup"></g>
+                            </svg>
+                        </div>
+
                         <div class="flow-content" x-text="currentEvent?.content_summary"></div>
-                        <div x-show="currentEvent?.metadata && Object.keys(currentEvent.metadata).length > 0" class="flow-metadata">
+                        <div x-show="currentMetadataEntries.length > 0" class="flow-metadata">
                             <details open>
                                 <summary>Details</summary>
                                 <div class="metadata-table-wrapper">
@@ -150,7 +172,7 @@ class ConversationDebuggerSubsection(BaseSubsection):
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <template x-for="[key, value] in Object.entries(currentEvent.metadata)" :key="key">
+                                            <template x-for="[key, value] in currentMetadataEntries" :key="key">
                                                 <tr>
                                                     <td class="meta-key" x-text="key"></td>
                                                     <td class="meta-value">
@@ -344,30 +366,87 @@ class ConversationDebuggerSubsection(BaseSubsection):
     text-transform: uppercase;
 }
 
-.flow-arrow {
+.diagram-controls {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.5rem;
-    background: var(--card-bg, #f9f9f9);
+    margin-bottom: 0.5rem;
+}
+
+.view-all-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.view-all-toggle input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.diagram-container {
+    border: 1px solid var(--border-color, #e0e0e0);
     border-radius: 8px;
+    overflow: hidden;
+    background: var(--card-bg, #f9f9f9);
+    min-height: 120px;
     margin-bottom: 1rem;
+    position: relative;
+    cursor: grab;
+    user-select: none;
 }
 
-.flow-source,
-.flow-target {
-    flex: 1;
-    padding: 1rem;
-    background: white;
-    border: 2px solid var(--accent-color, #007bff);
-    border-radius: 6px;
-    text-align: center;
-    font-weight: 600;
+.diagram-container:active {
+    cursor: grabbing;
 }
 
-.arrow {
-    font-size: 2rem;
-    color: var(--accent-color, #007bff);
+.flow-diagram {
+    display: block;
+    width: 100%;
+}
+
+.flow-diagram rect,
+.flow-diagram text,
+.flow-diagram line,
+.flow-diagram path {
+    transition: all 0.3s ease;
+}
+
+.flow-diagram .comp-box-active {
+    filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
+}
+
+.flow-diagram .comp-box-inactive {
+    opacity: 0.3;
+}
+
+.flow-diagram .comp-label {
+    font: 600 12px sans-serif;
+    text-anchor: middle;
+    pointer-events: none;
+}
+
+.flow-diagram .comp-label-active {
+    fill: #1f2937;
+}
+
+.flow-diagram .comp-label-inactive {
+    fill: #9ca3af;
+}
+
+.flow-diagram .event-arrow-active {
+    stroke-width: 3;
+}
+
+.flow-diagram .event-arrow-inactive {
+    stroke-width: 1;
+    opacity: 0.2;
+}
+
+.arrow-marker-active {
+    fill: #6B7280;
 }
 
 .flow-content {
