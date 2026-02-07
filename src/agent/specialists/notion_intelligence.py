@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import time
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from ...llm.base import BaseLLM
@@ -234,9 +235,36 @@ class NotionIntelligenceEngine:
         # Execute primary queries
         for query in strategy.primary_queries[: self.config.max_queries]:
             try:
+                # Log trace event before search
+                search_start_time = time.time()
+                if self._trace:
+                    from ...debug.trace import TraceEventType
+                    query_preview = query[:50] + "..." if len(query) > 50 else query
+                    self._trace.add_event(
+                        TraceEventType.TOOL_CALL,
+                        source="notion_intelligence",
+                        target="notion_search",
+                        content_summary=f"Search: '{query_preview}'",
+                        metadata={"query": query, "max_results": max_results_per_query}
+                    )
+
                 results = await self.search_tool._search_index(
                     query, max_results_per_query
                 )
+
+                # Log trace event after search
+                if self._trace:
+                    from ...debug.trace import TraceEventType
+                    duration_ms = (time.time() - search_start_time) * 1000
+                    self._trace.add_event(
+                        TraceEventType.TOOL_CALL,
+                        source="notion_search",
+                        target="notion_intelligence",
+                        content_summary=f"Search returned {len(results)} results",
+                        duration_ms=duration_ms,
+                        metadata={"query": query, "result_count": len(results)}
+                    )
+
                 for r in results:
                     metadata = r.get("metadata", {})
                     page_id = metadata.get("page_id", "")
@@ -259,9 +287,36 @@ class NotionIntelligenceEngine:
         if len(all_results) < 3 and strategy.fallback_queries:
             for query in strategy.fallback_queries[:2]:
                 try:
+                    # Log trace event before search
+                    search_start_time = time.time()
+                    if self._trace:
+                        from ...debug.trace import TraceEventType
+                        query_preview = query[:50] + "..." if len(query) > 50 else query
+                        self._trace.add_event(
+                            TraceEventType.TOOL_CALL,
+                            source="notion_intelligence",
+                            target="notion_search",
+                            content_summary=f"Fallback search: '{query_preview}'",
+                            metadata={"query": query, "max_results": max_results_per_query, "is_fallback": True}
+                        )
+
                     results = await self.search_tool._search_index(
                         query, max_results_per_query
                     )
+
+                    # Log trace event after search
+                    if self._trace:
+                        from ...debug.trace import TraceEventType
+                        duration_ms = (time.time() - search_start_time) * 1000
+                        self._trace.add_event(
+                            TraceEventType.TOOL_CALL,
+                            source="notion_search",
+                            target="notion_intelligence",
+                            content_summary=f"Fallback search returned {len(results)} results",
+                            duration_ms=duration_ms,
+                            metadata={"query": query, "result_count": len(results), "is_fallback": True}
+                        )
+
                     for r in results:
                         metadata = r.get("metadata", {})
                         page_id = metadata.get("page_id", "")
@@ -372,7 +427,35 @@ class NotionIntelligenceEngine:
         enriched = []
         for result in ranked_results:
             try:
+                # Log trace event before fetch
+                fetch_start_time = time.time()
+                title_preview = result.title[:30] + "..." if len(result.title) > 30 else result.title
+                if self._trace:
+                    from ...debug.trace import TraceEventType
+                    self._trace.add_event(
+                        TraceEventType.TOOL_CALL,
+                        source="notion_intelligence",
+                        target="notion_search",
+                        content_summary=f"Fetch page: '{title_preview}'",
+                        metadata={"page_id": result.page_id, "title": result.title}
+                    )
+
                 page_data = await self.search_tool._fetch_page_content(result.page_id)
+
+                # Log trace event after fetch
+                if self._trace:
+                    from ...debug.trace import TraceEventType
+                    duration_ms = (time.time() - fetch_start_time) * 1000
+                    content_length = len(page_data.get("content", "")) if page_data else 0
+                    self._trace.add_event(
+                        TraceEventType.TOOL_CALL,
+                        source="notion_search",
+                        target="notion_intelligence",
+                        content_summary=f"Fetched page ({content_length} chars)",
+                        duration_ms=duration_ms,
+                        metadata={"page_id": result.page_id, "content_length": content_length}
+                    )
+
                 result.content = page_data.get("content", "")
                 enriched.append(result)
             except Exception as e:
@@ -454,7 +537,34 @@ class NotionIntelligenceEngine:
             SynthesizedAnswer with basic search results
         """
         try:
+            # Log trace event before search
+            search_start_time = time.time()
+            if self._trace:
+                from ...debug.trace import TraceEventType
+                query_preview = user_question[:50] + "..." if len(user_question) > 50 else user_question
+                self._trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source="notion_intelligence",
+                    target="notion_search",
+                    content_summary=f"Fallback search: '{query_preview}'",
+                    metadata={"query": user_question, "max_results": max_results, "is_simple_fallback": True}
+                )
+
             results = await self.search_tool._search_index(user_question, max_results)
+
+            # Log trace event after search
+            if self._trace:
+                from ...debug.trace import TraceEventType
+                duration_ms = (time.time() - search_start_time) * 1000
+                self._trace.add_event(
+                    TraceEventType.TOOL_CALL,
+                    source="notion_search",
+                    target="notion_intelligence",
+                    content_summary=f"Fallback search returned {len(results)} results",
+                    duration_ms=duration_ms,
+                    metadata={"query": user_question, "result_count": len(results), "is_simple_fallback": True}
+                )
+
             if not results:
                 return SynthesizedAnswer(
                     answer=f"I couldn't find any relevant pages in your Notion workspace for: '{user_question}'",
@@ -472,8 +582,36 @@ class NotionIntelligenceEngine:
             content = ""
             if page_id:
                 try:
+                    # Log trace event before fetch
+                    fetch_start_time = time.time()
+                    title = metadata.get("title", "Untitled")
+                    title_preview = title[:30] + "..." if len(title) > 30 else title
+                    if self._trace:
+                        from ...debug.trace import TraceEventType
+                        self._trace.add_event(
+                            TraceEventType.TOOL_CALL,
+                            source="notion_intelligence",
+                            target="notion_search",
+                            content_summary=f"Fetch page: '{title_preview}'",
+                            metadata={"page_id": page_id, "title": title, "is_simple_fallback": True}
+                        )
+
                     page_data = await self.search_tool._fetch_page_content(page_id)
                     content = page_data.get("content", "")
+
+                    # Log trace event after fetch
+                    if self._trace:
+                        from ...debug.trace import TraceEventType
+                        duration_ms = (time.time() - fetch_start_time) * 1000
+                        content_length = len(content)
+                        self._trace.add_event(
+                            TraceEventType.TOOL_CALL,
+                            source="notion_search",
+                            target="notion_intelligence",
+                            content_summary=f"Fetched page ({content_length} chars)",
+                            duration_ms=duration_ms,
+                            metadata={"page_id": page_id, "content_length": content_length, "is_simple_fallback": True}
+                        )
                 except Exception:
                     pass
 
